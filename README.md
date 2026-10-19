@@ -83,3 +83,4 @@ for i in range(0, total_registros, TAMANO_LOTE):
 conteo_final = coleccion_hechos.count_documents({}) 
 print(f"¡Carga completada! Total de documentos en la BD: {conteo_final}") 
 ```
+![Diagrama Tentativo][https://drive.google.com/file/d/1OHkanfy1I3oFhGOW3BNGFsK1ckKxPtnY/view?usp=drive_link]
