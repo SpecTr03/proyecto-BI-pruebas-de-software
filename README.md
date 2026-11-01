@@ -1,6 +1,80 @@
 # proyecto-BI-pruebas-de-software
 Proyecto final de pruebas de software que tiene como objetivo crear un proceso ETL para posteriormente presentar los resultados en un dashboard, facilitando la toma de decisiones.
 
+## Stack tecnológico previsto
+
+- Metodología de ciencia de datos: **CRISP-DM**.
+- Base de datos: **MongoDB** como opción principal NoSQL. Apache Cassandra queda como alternativa para escenarios distribuidos de Big Data.
+- Procesamiento y analítica: **Python**, pandas, NumPy, scikit-learn, XGBoost y LightGBM.
+- Backend: **Python con FastAPI**.
+- Frontend: **JavaScript/TypeScript, React y Vite**.
+- Visualización: **Plotly, Chart.js o D3.js**.
+
+## Configuración local
+
+Se recomienda ejecutar Python dentro de un entorno virtual aislado.
+
+### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r scripts/requirements.txt
+python -m pip install -r notebooks/requirements.txt
+python -m ipykernel install --user --name proyecto-bi --display-name "Proyecto BI"
+```
+
+Para abrir un terminal nuevo sin activar el entorno, los ejecutables se encuentran en:
+
+```text
+.venv\Scripts\python.exe
+.venv\Scripts\jupyter.exe
+```
+
+## Estructura
+
+```text
+data/       Dataset fuente y datos procesados
+notebooks/  Análisis exploratorio y prototipado
+scripts/    ETL y carga hacia NoSQL
+backend/    API REST
+frontend/   Dashboard React
+docs/       Documentación e imágenes
+```
+
+## Ejecutar el notebook
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+jupyter lab notebooks/resultados-saber-pro-analisis.ipynb
+```
+
+Seleccione el kernel `Proyecto BI`. La ruta al CSV desde el notebook es `../data/Resultados_Saber_Pro_20260927.csv`.
+
+## Ejecutar la carga NoSQL
+
+MongoDB debe estar disponible en una instancia local o remota. Con MongoDB local en el puerto predeterminado:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python scripts/populate_nosql.py --reset
+```
+
+Opciones principales:
+
+```powershell
+python scripts/populate_nosql.py `
+  --mongo-uri "mongodb://localhost:27017/" `
+  --database "SaberProDB" `
+  --collection "Fact_Resultados" `
+  --batch-size 10000 `
+  --encoding auto `
+  --reset
+```
+
+El parámetro `--encoding latin-1` puede utilizarse si la detección automática identifica caracteres incorrectamente. No use `--reset` si desea conservar los documentos existentes.
+
 ### 7.6.3 Dimensiones y Tabla de Hechos (Estructura en MongoDB)
 
 Para el diseño de la base de datos NoSQL en MongoDB, se ha optado por un **Esquema de Estrella (Star Schema)**. Las 39 columnas de interés seleccionadas en la fase ETL han sido distribuidas lógicamente para optimizar las consultas del dashboard, separando los datos cuantitativos (hechos) de los datos descriptivos (dimensiones).
@@ -73,7 +147,7 @@ Agrupa la información sociodemográfica y socioeconómica del examinado.
 
 A continuación, se presenta el diagrama del Esquema de Estrella implementado para la base de datos en MongoDB:
 
-![Diagrama de la Base de Datos](/deepseek_mermaid_20261019_487784.png)
+![Diagrama de la Base de Datos](docs/deepseek_mermaid_20261019_487784.png)
 
 *Figura X. Diagrama del Esquema de Estrella para la base de datos SaberProDB en MongoDB.*
 
