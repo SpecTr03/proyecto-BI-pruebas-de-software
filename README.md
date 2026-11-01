@@ -38,8 +38,6 @@ Para abrir un terminal nuevo sin activar el entorno, los ejecutables se encuentr
 data/       Dataset fuente y datos procesados
 notebooks/  Análisis exploratorio y prototipado
 scripts/    ETL y carga hacia NoSQL
-backend/    API REST
-frontend/   Dashboard React
 docs/       Documentación e imágenes
 ```
 
@@ -74,6 +72,54 @@ python scripts/populate_nosql.py `
 ```
 
 El parámetro `--encoding latin-1` puede utilizarse si la detección automática identifica caracteres incorrectamente. No use `--reset` si desea conservar los documentos existentes.
+
+## Exportación filtrada (HU09)
+
+La HU09 puede ejecutarse directamente con un script Python; no requiere que el backend web esté implementado.
+
+Instale las dependencias del script:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r scripts/requirements.txt
+```
+
+Ejemplo CSV con filtros actuales:
+
+```powershell
+python scripts/export_data.py `
+  --format csv `
+  --year 2018 `
+  --department BOGOTA `
+  --institution UNIVERSIDAD `
+  --reference-group ADMINISTRACION `
+  --limit 10000 `
+  --offset 0 `
+  --output exports/saber-pro-2018-bogota.csv
+```
+
+Ejemplo JSON:
+
+```powershell
+python scripts/export_data.py --format json --year 2018 --limit 10000 --output exports/saber-pro-2018.json
+```
+
+Exportación por lotes:
+
+```powershell
+python scripts/export_data.py --format csv --limit 10000 --offset 0 --output exports/batch-1.csv
+python scripts/export_data.py --format csv --limit 10000 --offset 10000 --output exports/batch-2.csv
+python scripts/export_data.py --format csv --limit 10000 --offset 20000 --output exports/batch-3.csv
+```
+
+Las funciones reutilizables están en `scripts/export_data.py`:
+
+- `build_filter()`: transforma filtros de dashboard a consulta MongoDB.
+- `count_filtered_records()`: obtiene el total coincidente.
+- `iter_filtered_records()`: genera registros por lotes.
+- `export_filtered_data()`: crea CSV o JSON.
+
+Parámetros de conexión opcionales mediante variables de entorno: `MONGO_URI`, `MONGO_DATABASE` y `MONGO_COLLECTION`. `--limit` está limitado a 100.000 registros por ejecución y `--batch-size` controla cuántos registros se procesan simultáneamente.
 
 ### 7.6.3 Dimensiones y Tabla de Hechos (Estructura en MongoDB)
 
