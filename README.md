@@ -1,6 +1,82 @@
 # proyecto-BI-pruebas-de-software
 Proyecto final de pruebas de software que tiene como objetivo crear un proceso ETL para posteriormente presentar los resultados en un dashboard, facilitando la toma de decisiones.
 
+### 7.6.3 Dimensiones y Tabla de Hechos (Estructura en MongoDB)
+
+Para el diseño de la base de datos NoSQL en MongoDB, se ha optado por un **Esquema de Estrella (Star Schema)**. Las 39 columnas de interés seleccionadas en la fase ETL han sido distribuidas lógicamente para optimizar las consultas del dashboard, separando los datos cuantitativos (hechos) de los datos descriptivos (dimensiones).
+
+**1. Colección de Hechos: `Fact_Resultados`**
+Contiene las métricas cuantitativas del desempeño y las llaves de referencia.
+*   `_id`: ObjectId (Autogenerado por MongoDB).
+*   `estu_consecutivo`: Texto (Identificador único del examinando).
+*   `id_tiempo`: ObjectId (FK -> Dim_Tiempo).
+*   `id_estudiante`: ObjectId (FK -> Dim_Estudiante).
+*   `id_institucion`: ObjectId (FK -> Dim_Institucion).
+*   `id_programa`: ObjectId (FK -> Dim_Programa).
+*   `id_ubicacion_examen`: ObjectId (FK -> Dim_Ubicacion_Examen).
+*   `mod_razona_cuantitat_punt`: Numérico.
+*   `mod_comuni_escrita_punt`: Numérico.
+*   `mod_lectura_critica_punt`: Numérico.
+*   `mod_ingles_punt`: Numérico.
+*   `mod_competen_ciudada_punt`: Numérico.
+*   `mod_comuni_escrita_desem`: Texto (Nivel de desempeño).
+*   `mod_ingles_desem`: Texto (Nivel de desempeño).
+
+**2. Colección Dimensión: `Dim_Tiempo`**
+*   `_id`: ObjectId.
+*   `periodo`: Texto (Ej. "20225", "20212").
+
+**3. Colección Dimensión: `Dim_Estudiante`**
+Agrupa la información sociodemográfica y socioeconómica del examinado.
+*   `_id`: ObjectId.
+*   `estu_genero`: Texto.
+*   `estu_fechanacimiento`: Fecha/Texto.
+*   `estu_nacionalidad`: Texto.
+*   `estu_pais_reside`: Texto.
+*   `estu_depto_reside`: Texto.
+*   `estu_mcpio_reside`: Texto.
+*   `estu_privado_libertad`: Texto.
+*   `estu_estudiante`: Texto.
+*   `estu_horassemanatrabaja`: Texto.
+*   `fami_educacionpadre`: Texto.
+*   `fami_educacionmadre`: Texto.
+*   `fami_estratovivienda`: Texto.
+*   `fami_tienecomputador`: Texto.
+*   `fami_tieneinternet`: Texto.
+*   `estu_valormatriculauniversidad`: Texto.
+*   `estu_pagomatriculabeca`: Texto.
+*   `estu_pagomatriculacredito`: Texto.
+*   `estu_pagomatriculapadres`: Texto.
+*   `estu_pagomatriculapropio`: Texto.
+
+**4. Colección Dimensión: `Dim_Institucion`**
+*   `_id`: ObjectId.
+*   `inst_nombre_institucion`: Texto.
+*   `inst_caracter_academico`: Texto.
+*   `inst_origen`: Texto.
+*   `estu_cole_termino`: Texto.
+*   `estu_inst_departamento`: Texto.
+*   `estu_inst_municipio`: Texto.
+
+**5. Colección Dimensión: `Dim_Programa`**
+*   `_id`: ObjectId.
+*   `estu_nucleo_pregrado`: Texto.
+*   `estu_prgm_academico`: Texto.
+*   `estu_metodo_prgm`: Texto.
+
+**6. Colección Dimensión: `Dim_Ubicacion_Examen`**
+*   `_id`: ObjectId.
+*   `estu_depto_presentacion`: Texto.
+*   `estu_mcpio_presentacion`: Texto.
+
+### 7.6.4 Diagrama de la Base de Datos
+
+A continuación, se presenta el diagrama del Esquema de Estrella implementado para la base de datos en MongoDB:
+
+![Diagrama de la Base de Datos](/deepseek_mermaid_20261019_487784.png)
+
+*Figura X. Diagrama del Esquema de Estrella para la base de datos SaberProDB en MongoDB.*
+
 # Capítulo 7. Sistema Implementado
 
 ## 7.7 Proceso ETL (Extract, Transform, Load)
