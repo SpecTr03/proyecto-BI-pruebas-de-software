@@ -279,3 +279,106 @@ for i in range(0, total_registros, TAMANO_LOTE):
 conteo_final = coleccion_hechos.count_documents({}) 
 print(f"¡Carga completada! Total de documentos en la BD: {conteo_final}") 
 ```
+
+---
+
+# Backend API
+
+La API REST desarrollada con **FastAPI** permite consultar la base de datos MongoDB `SaberProDB`, organizada con el Esquema de Estrella descrito anteriormente. El código se encuentra en la carpeta `backend/`.
+
+## Requisitos previos
+
+- **MongoDB** en ejecución local o remoto. Por defecto se utiliza `mongodb://localhost:27017/`.
+- **Python 3.10 o superior**.
+- Base de datos `SaberProDB` poblada con las colecciones del Esquema de Estrella: `Fact_Resultados`, `Dim_Tiempo`, `Dim_Estudiante`, `Dim_Institucion`, `Dim_Programa` y `Dim_Ubicacion_Examen`.
+- Las variables de entorno `MONGO_URI` y `MONGO_DATABASE` configuradas en el archivo `.env`.
+
+## Instalación y ejecución del Backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --env-file .env
+```
+
+El archivo `.env` debe contener las variables de conexión:
+
+```dotenv
+MONGO_URI=mongodb://localhost:27017/
+MONGO_DATABASE=SaberProDB
+```
+
+La API quedará disponible en `http://localhost:8000`. Se recomienda crear y activar un entorno virtual antes de instalar las dependencias.
+
+## Endpoints disponibles
+
+### `GET /api/health`
+
+Verifica que la API esté activa y que MongoDB responda correctamente.
+
+**Respuesta exitosa:**
+
+```json
+{
+  "status": "ok",
+  "mongo": "connected"
+}
+```
+
+Si MongoDB no está disponible, el endpoint devuelve HTTP `503` con el estado `disconnected`.
+
+### `GET /api/kpis`
+
+Calcula el promedio de una métrica numérica de `Fact_Resultados`. Por defecto utiliza `mod_razona_cuantitat_punt`. Todos los filtros son opcionales y se pueden combinar entre sí.
+
+**Filtros disponibles:**
+
+| Parámetro | Descripción |
+| --- | --- |
+| `periodo` | Periodo académico, por ejemplo `20225`. |
+| `departamento` | Departamento de residencia del estudiante. |
+| `municipio` | Municipio de residencia del estudiante. |
+| `institucion` | Nombre de la institución de educación superior. |
+| `caracter_institucion` | Carácter académico de la institución. |
+| `programa` | Nombre del programa académico. |
+| `metodo_programa` | Metodología del programa. |
+| `genero` | Género del estudiante (`F` o `M`). |
+| `estrato` | Estrato socioeconómico; acepta `2` o `Estrato 2`. |
+| `grupo_referencia` | Núcleo de conocimiento o grupo de referencia. |
+| `internet` | Tenencia de internet en el hogar (`true` o `false`). |
+| `computador` | Tenencia de computador en el hogar (`true` o `false`). |
+| `departamento_examen` | Departamento donde se presentó el examen. |
+| `municipio_examen` | Municipio donde se presentó el examen. |
+| `metrica` | Métrica numérica a promediar. Valor por defecto: `mod_razona_cuantitat_punt`. |
+
+Los filtros de texto no distinguen entre mayúsculas y minúsculas.
+
+**Ejemplo de consulta:**
+
+```text
+GET http://localhost:8000/api/kpis?periodo=20225&departamento=ANTIOQUIA&genero=F&internet=true
+```
+
+**Ejemplo de respuesta:**
+
+```json
+{
+  "metric": "mod_razona_cuantitat_punt",
+  "value": 150.42,
+  "total_records": 1234,
+  "filters": {
+    "periodo": "20225",
+    "departamento": "ANTIOQUIA",
+    "genero": "F",
+    "internet": true
+  }
+}
+```
+
+## Documentación interactiva
+
+La documentación generada automáticamente por FastAPI está disponible en:
+
+- **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
+- **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
