@@ -17,8 +17,10 @@ from typing import AsyncIterator
 from fastapi import FastAPI
 
 from .database import mongo_connection
+from .routes.filtros import router as filtros_router
 from .routes.health import router as health_router
 from .routes.kpis import router as kpis_router
+from .routes.salud_bd import router as salud_bd_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +67,8 @@ app = FastAPI(
 # Rutas de la API.
 app.include_router(health_router, prefix="/api")
 app.include_router(kpis_router, prefix="/api")
+app.include_router(filtros_router, prefix="/api")
+app.include_router(salud_bd_router, prefix="/api")
 
 
 @app.get("/", tags=["Root"], summary="Información básica de la API")

@@ -382,3 +382,84 @@ La documentación generada automáticamente por FastAPI está disponible en:
 
 - **Swagger UI:** [http://localhost:8000/docs](http://localhost:8000/docs)
 - **ReDoc:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+
+## Historias de Usuario Implementadas
+
+### HU-04: Visualización de Salud de la BD NoSQL
+
+**Endpoint:** `GET /api/salud-bd`
+
+Devuelve métricas de salud y rendimiento de MongoDB: estado de la conexión, cantidad de documentos por colección, tiempo de una consulta de agregación y espacio total ocupado por la base de datos.
+
+**Ejemplo de respuesta real:**
+
+```json
+{
+  "estado_conexion": "conectado",
+  "colecciones": {
+    "Fact_Resultados": 1209063,
+    "Dim_Tiempo": 13,
+    "Dim_Estudiante": 1209063,
+    "Dim_Institucion": 267218,
+    "Dim_Programa": 1322,
+    "Dim_Ubicacion_Examen": 166
+  },
+  "tiempo_promedio_consulta_ms": 265.663,
+  "espacio_total_mb": 591.08,
+  "total_documentos": 2686845
+}
+```
+
+La ejecución reportó **2.686.845 documentos** en total y **591 MB** de espacio ocupado. Si MongoDB no responde, el endpoint devuelve HTTP `503` con un mensaje descriptivo.
+
+### HU-10: Mapeo de Filtros Multidimensionales
+
+Cada endpoint devuelve la lista de valores únicos (`distinct`) de una dimensión, ordenados alfabéticamente y sin valores nulos o vacíos, para poblar los dropdowns del frontend.
+
+**Endpoints disponibles:**
+
+- `GET /api/filtros/periodos`
+- `GET /api/filtros/departamentos`
+- `GET /api/filtros/municipios`
+- `GET /api/filtros/instituciones`
+- `GET /api/filtros/caracteres`
+- `GET /api/filtros/programas`
+- `GET /api/filtros/metodos`
+- `GET /api/filtros/generos`
+- `GET /api/filtros/estratos`
+- `GET /api/filtros/nucleos`
+
+**Ejemplo de respuesta para `GET /api/filtros/periodos`:**
+
+```json
+{
+  "valores": [
+    "20183",
+    "20184",
+    "20194",
+    "20195",
+    "20196",
+    "20202",
+    "20203",
+    "20212",
+    "20213",
+    "20222",
+    "20223",
+    "20225",
+    "20226"
+  ],
+  "total": 13
+}
+```
+
+### HU-30: Arquitectura con Patrones de Diseño
+
+El backend implementa los siguientes patrones:
+
+- **Singleton:** una única conexión a MongoDB compartida por toda la aplicación.
+- **Builder:** construcción dinámica de pipelines de agregación con `$lookup` y filtros opcionales.
+
+**Archivos clave:**
+
+- `app/database.py`: implementación de `MongoConnection` como Singleton.
+- `app/builders/query_builder.py`: implementación de `QueryBuilder` para construir consultas dinámicas.
