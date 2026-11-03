@@ -20,6 +20,7 @@ from .database import mongo_connection
 from .routes.filtros import router as filtros_router
 from .routes.health import router as health_router
 from .routes.kpis import router as kpis_router
+from .routes.prediccion import router as prediccion_router
 from .routes.salud_bd import router as salud_bd_router
 
 logging.basicConfig(
@@ -68,6 +69,7 @@ app = FastAPI(
 app.include_router(health_router, prefix="/api")
 app.include_router(kpis_router, prefix="/api")
 app.include_router(filtros_router, prefix="/api")
+app.include_router(prediccion_router, prefix="/api")
 app.include_router(salud_bd_router, prefix="/api")
 
 

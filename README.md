@@ -489,6 +489,40 @@ Devuelve en una sola consulta los promedios de razonamiento, lectura crítica, c
 }
 ```
 
+### HU-20: Entrenamiento y Selección de Modelos Predictivos
+
+**Script de entrenamiento:** `scripts/train_model.py`
+
+**Modelo seleccionado:** XGBoost (mejor MAE y R² entre RandomForest, GradientBoosting y XGBoost).
+
+**Resultados del entrenamiento:**
+
+| Modelo | CV MAE | Test MAE | RMSE | R² |
+|--------|--------|----------|------|-----|
+| RandomForest | 18.13 | 18.12 | 23.10 | 0.179 |
+| GradientBoosting | 17.19 | 17.19 | 21.87 | 0.264 |
+| **XGBoost** | **17.02** | **17.01** | **21.69** | **0.276** |
+
+**Muestra usada:** 200,000 registros aleatorios (198,760 utilizables).
+
+**Variables más importantes:** caracter_academico_UNIVERSIDAD (24.7%), depto_institucion_CHOCO (9.8%), metodo_programa_PRESENCIAL (7.5%), depto_reside_BOGOTÁ (5.6%), estrato (2.2%).
+
+**Interpretación del R² = 0.276:** Las variables socioeconómicas y de contexto explican aproximadamente el 28% de la varianza del puntaje global. Esto es coherente con la literatura (De La Hoz et al., 2026), que indica que los puntajes previos de Saber 11 son los predictores más fuertes, mientras que las variables socioeconómicas aportan información complementaria.
+
+**Endpoint de predicción:** `POST /api/predecir`
+
+- Recibe un JSON con las características del estudiante (genero, estrato, educacion_padre, educacion_madre, tiene_internet, tiene_computador, caracter_academico, metodo_programa, depto_reside, depto_institucion).
+- Devuelve `puntaje_predicho` (float) y `nivel_desempeno` (Bajo/Medio/Alto/Muy Alto).
+- Ejemplo de respuesta:
+
+```json
+{
+  "puntaje_predicho": 153.64,
+  "nivel_desempeno": "Alto",
+  "confianza": null
+}
+```
+
 ### HU-30: Arquitectura con Patrones de Diseño
 
 El backend implementa los siguientes patrones:

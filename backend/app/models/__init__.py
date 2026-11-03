@@ -7,6 +7,7 @@ from .kpi import (
     KpiGlobalResponse,
     KpiResponse,
 )
+from .prediccion import PrediccionInput, PrediccionResponse
 from .salud import SaludBDResponse
 
 __all__ = [
@@ -15,5 +16,7 @@ __all__ = [
     "KpiCompetenciasResponse",
     "KpiGlobalResponse",
     "KpiResponse",
+    "PrediccionInput",
+    "PrediccionResponse",
     "SaludBDResponse",
 ]
