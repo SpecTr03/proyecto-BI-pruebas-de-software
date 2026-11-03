@@ -11,7 +11,7 @@ Los nombres de campos coinciden con los documentos generados por
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 # Relación entre cada dimensión y su colección/llave foránea en MongoDB.
@@ -334,6 +334,77 @@ class QueryBuilder:
                         "total_records": 1,
                     }
                 },
+            ]
+        )
+        return pipeline
+
+    def build_kpi_multi(
+        self,
+        metrics: Mapping[str, str],
+    ) -> list[dict[str, Any]]:
+        """Construye un pipeline que calcula varias métricas en una sola pasada.
+
+        El resultado incluye un campo por cada alias de ``metrics``, el total de
+        registros y ``promedio_global`` calculado como la suma de los promedios
+        dividida entre la cantidad de métricas.
+
+        Args:
+            metrics: Mapa ``{alias_respuesta: campo_metrica}``. Los campos deben
+                pertenecer a ``NUMERIC_METRICS``.
+
+        Returns:
+            Pipeline con ``$group`` y ``$project`` listo para ejecutar.
+
+        Raises:
+            ValueError: Si no se indican métricas, se repite un alias reservado
+                o alguna métrica no está permitida.
+        """
+        if not metrics:
+            raise ValueError("Debe indicar al menos una métrica.")
+
+        reserved = {"total_registros", "promedio_global"}
+        repeated = reserved.intersection(metrics)
+        if repeated:
+            aliases = ", ".join(sorted(repeated))
+            raise ValueError(f"Alias reservado(s): {aliases}")
+
+        invalid = [
+            metric for metric in metrics.values() if metric not in NUMERIC_METRICS
+        ]
+        if invalid:
+            allowed = ", ".join(sorted(NUMERIC_METRICS))
+            raise ValueError(
+                "Métrica(s) no permitida(s): "
+                f"{', '.join(sorted(set(invalid)))}. "
+                f"Métricas válidas: {allowed}"
+            )
+
+        aliases = list(metrics)
+        group: dict[str, Any] = {
+            "_id": None,
+            "total_registros": {"$sum": 1},
+        }
+        projection: dict[str, Any] = {
+            "_id": 0,
+            "total_registros": 1,
+        }
+
+        for alias, metric in metrics.items():
+            group[alias] = {"$avg": f"${metric}"}
+            projection[alias] = 1
+
+        projection["promedio_global"] = {
+            "$divide": [
+                {"$sum": [f"${alias}" for alias in aliases]},
+                len(aliases),
+            ]
+        }
+
+        pipeline = self._base_pipeline()
+        pipeline.extend(
+            [
+                {"$group": group},
+                {"$project": projection},
             ]
         )
         return pipeline

@@ -28,3 +28,76 @@ class KpiResponse(BaseModel):
         default_factory=dict,
         description="Filtros aplicados en la consulta.",
     )
+
+
+class KpiGlobalResponse(BaseModel):
+    """KPI global y comparativo contra el periodo inmediatamente anterior."""
+
+    promedio_global: float = Field(
+        ...,
+        examples=[148.72],
+        description=(
+            "Promedio global calculado como la suma de los cinco promedios "
+            "de competencias dividida entre cinco."
+        ),
+    )
+    total_registros: int = Field(
+        ...,
+        ge=0,
+        examples=[1209063],
+        description="Cantidad de registros que coincidieron con los filtros.",
+    )
+    periodo_actual: str | None = Field(
+        default=None,
+        examples=["20225"],
+        description="Periodo consultado; ``None`` si no se aplicó ese filtro.",
+    )
+    comparativo_porcentual: float | None = Field(
+        default=None,
+        examples=[2.45],
+        description=(
+            "Variación porcentual del promedio global frente al periodo "
+            "anterior; ``None`` si no hay periodo o datos comparables."
+        ),
+    )
+
+
+class KpiCompetenciasResponse(BaseModel):
+    """Promedios por competencia y promedio global en una sola consulta."""
+
+    razonamiento: float = Field(
+        ...,
+        examples=[150.2],
+        description="Promedio de razonamiento cuantitativo.",
+    )
+    lectura: float = Field(
+        ...,
+        examples=[151.4],
+        description="Promedio de lectura crítica.",
+    )
+    ciudadanas: float = Field(
+        ...,
+        examples=[145.8],
+        description="Promedio de competencias ciudadanas.",
+    )
+    escrita: float = Field(
+        ...,
+        examples=[146.3],
+        description="Promedio de comunicación escrita.",
+    )
+    ingles: float = Field(
+        ...,
+        examples=[149.9],
+        description="Promedio de inglés.",
+    )
+    promedio_global: float = Field(
+        ...,
+        examples=[148.72],
+        description="Promedio de los cinco promedios por competencia.",
+    )
+    total_registros: int = Field(
+        ...,
+        ge=0,
+        examples=[1209063],
+        description="Cantidad de registros que coincidieron con los filtros.",
+    )

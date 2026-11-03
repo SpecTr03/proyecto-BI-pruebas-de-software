@@ -452,6 +452,43 @@ Cada endpoint devuelve la lista de valores únicos (`distinct`) de una dimensió
 }
 ```
 
+### HU-11: KPI Promedio Global
+
+**Endpoint:** `GET /api/kpis/global`
+
+Devuelve el promedio del puntaje global, calculado como el promedio de los cinco módulos. Si se filtra por periodo, incluye el comparativo porcentual con el periodo inmediatamente anterior.
+
+**Ejemplo de respuesta con `?periodo=20225`:**
+
+```json
+{
+  "promedio_global": 145.6,
+  "total_registros": 126282,
+  "periodo_actual": "20225",
+  "comparativo_porcentual": -7.61
+}
+```
+
+### HU-12: KPIs Promedios por Competencia
+
+**Endpoint:** `GET /api/kpis/competencias`
+
+Devuelve en una sola consulta los promedios de razonamiento, lectura crítica, competencias ciudadanas, comunicación escrita e inglés, junto con el promedio global y el total de registros. Acepta los mismos filtros opcionales que `/api/kpis`.
+
+**Ejemplo de respuesta sin filtros:**
+
+```json
+{
+  "razonamiento": 146.76,
+  "lectura": 149.4,
+  "ciudadanas": 144.89,
+  "escrita": 139.13,
+  "ingles": 153.52,
+  "promedio_global": 146.74,
+  "total_registros": 1209063
+}
+```
+
 ### HU-30: Arquitectura con Patrones de Diseño
 
 El backend implementa los siguientes patrones:
