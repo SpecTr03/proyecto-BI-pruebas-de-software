@@ -463,7 +463,7 @@ Devuelve el promedio del puntaje global, calculado como el promedio de los cinco
 ```json
 {
   "promedio_global": 145.6,
-  "total_registros": 126282,
+  "total_registros": 123537,
   "periodo_actual": "20225",
   "comparativo_porcentual": -7.61
 }
