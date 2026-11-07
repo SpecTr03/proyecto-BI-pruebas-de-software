@@ -193,7 +193,7 @@ Agrupa la información sociodemográfica y socioeconómica del examinado.
 
 A continuación, se presenta el diagrama del Esquema de Estrella implementado para la base de datos en MongoDB:
 
-![Diagrama de la Base de Datos](docs/deepseek_mermaid_20261019_487784.png)
+![Diagrama de la Base de Datos](docs/DiagramaBD.png)
 
 *Figura X. Diagrama del Esquema de Estrella para la base de datos SaberProDB en MongoDB.*
 
