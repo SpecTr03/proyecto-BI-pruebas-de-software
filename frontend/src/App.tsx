@@ -1,5 +1,5 @@
-import { FormEvent, useRef, useState } from 'react'
-import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiDownload, FiEye, FiEyeOff, FiLoader, FiLock, FiLogOut, FiMail } from 'react-icons/fi'
+import { FormEvent, useEffect, useRef, useState } from 'react'
+import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiDatabase, FiDownload, FiEye, FiEyeOff, FiFileText, FiLoader, FiLock, FiLogOut, FiMail, FiMenu, FiPieChart, FiShield, FiSliders, FiTrendingUp, FiUsers, FiX } from 'react-icons/fi'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { authHeaders, clearSession, getSession, login } from './services/authApi'
 import type { AuthSession, UserRole } from './types'
@@ -81,6 +81,28 @@ const roleDetails: Record<UserRole, { title: string; description: string; accent
   Investigador: { title: 'Explora nuevas preguntas', description: 'Encuentra patrones y evidencia para profundizar el análisis.', accent: 'Vista de investigación' },
 }
 
+const roleMenu: Record<UserRole, Array<{ id: string; label: string; icon: React.ReactNode }>> = {
+  Administrador: [
+    { id: 'overview', label: 'Resumen', icon: <FiActivity /> },
+    { id: 'users', label: 'Usuarios y permisos', icon: <FiUsers /> },
+    { id: 'reports', label: 'Reportes gerenciales', icon: <FiFileText /> },
+    { id: 'data', label: 'Datos y ETL', icon: <FiDatabase /> },
+    { id: 'health', label: 'Estado de la plataforma', icon: <FiShield /> },
+  ],
+  Analista: [
+    { id: 'overview', label: 'Resumen', icon: <FiActivity /> },
+    { id: 'kpis', label: 'Indicadores KPI', icon: <FiTrendingUp /> },
+    { id: 'reports', label: 'Reportes analíticos', icon: <FiFileText /> },
+    { id: 'data', label: 'Datos y filtros', icon: <FiSliders /> },
+  ],
+  Investigador: [
+    { id: 'overview', label: 'Resumen', icon: <FiActivity /> },
+    { id: 'distributions', label: 'Distribuciones', icon: <FiPieChart /> },
+    { id: 'predictions', label: 'Predicciones', icon: <FiTrendingUp /> },
+    { id: 'reports', label: 'Reportes de estudio', icon: <FiFileText /> },
+  ],
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -89,9 +111,38 @@ function ProtectedRoute({ session, children }: { session: AuthSession | null; ch
 function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const navigate = useNavigate()
   const detail = roleDetails[session.user.role]
+  const menuItems = roleMenu[session.user.role]
   const contentRef = useRef<HTMLElement>(null)
   const [isExporting, setIsExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState('')
+  const [activeView, setActiveView] = useState(() => {
+    const viewFromHash = window.location.hash.slice(1)
+    return menuItems.some((item) => item.id === viewFromHash) ? viewFromHash : menuItems[0].id
+  })
+  const [menuOpen, setMenuOpen] = useState(false)
+  const activeMenuItem = menuItems.find((item) => item.id === activeView) ?? menuItems[0]
+
+  useEffect(() => {
+    if (!menuOpen) return
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [menuOpen])
+
+  function selectView(viewId: string) {
+    setActiveView(viewId)
+    setMenuOpen(false)
+    window.history.replaceState(null, '', `#${viewId}`)
+    document.getElementById('dashboard-main-content')?.focus({ preventScroll: true })
+  }
+
+  function logout() {
+    setMenuOpen(false)
+    onLogout()
+    navigate('/login', { replace: true })
+  }
 
   async function exportPdf() {
     if (!contentRef.current || isExporting) return
@@ -126,6 +177,16 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
         <div className="dashboard-brand"><BrandMark /><span>SaberPro <b>BI</b></span></div>
         <div className="user-area">
           <button
+            className="mobile-menu-button"
+            type="button"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label={menuOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'}
+            aria-expanded={menuOpen}
+            aria-controls="role-navigation"
+          >
+            {menuOpen ? <FiX /> : <FiMenu />}
+          </button>
+          <button
             className="export-button"
             type="button"
             onClick={exportPdf}
@@ -136,27 +197,41 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
             {isExporting ? 'Generando PDF...' : 'Exportar PDF'}
           </button>
           <div className="avatar">{session.user.name.charAt(0)}</div>
-          <div><strong>{session.user.name}</strong><small>{session.user.role}</small></div>
-          <button className="logout-button" onClick={() => { onLogout(); navigate('/login', { replace: true }) }} aria-label="Cerrar sesión">Salir <FiLogOut aria-hidden="true" /></button>
+          <div className="user-copy"><strong>{session.user.name}</strong><small>{session.user.role}</small></div>
+          <button className="logout-button" onClick={logout} aria-label="Cerrar sesión"><FiLogOut aria-hidden="true" /><span>Salir</span></button>
         </div>
       </header>
       <div className="dashboard-body">
-        <aside>
-          <p className="eyebrow">Tu espacio</p>
-          <nav>
-            <a className="active" href="#overview">Resumen <span>01</span></a>
-            <a href="#reports">Reportes <span>02</span></a>
-            <a href="#data">Datos <span>03</span></a>
+        {menuOpen && <button className="menu-backdrop" type="button" onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" />}
+        <aside id="role-navigation" className={menuOpen ? 'is-open' : ''}>
+          <div className="menu-heading">
+            <p className="eyebrow">Tu espacio</p>
+            <span>{session.user.role}</span>
+          </div>
+          <nav aria-label="Navegación principal">
+            {menuItems.map((item, index) => (
+              <button
+                className={activeView === item.id ? 'active' : ''}
+                type="button"
+                onClick={() => selectView(item.id)}
+                aria-current={activeView === item.id ? 'page' : undefined}
+                key={item.id}
+              >
+                <span className="menu-item-icon">{item.icon}</span>
+                <span>{item.label}</span>
+                <small>{String(index + 1).padStart(2, '0')}</small>
+              </button>
+            ))}
           </nav>
           <div className="side-foot"><span>Sesión protegida</span><FiCheckCircle /></div>
         </aside>
-        <section ref={contentRef} className="dashboard-content" id="overview">
+        <section ref={contentRef} className="dashboard-content" id="dashboard-main-content" tabIndex={-1}>
           <div className="dashboard-intro">
-            <div><p className="eyebrow">{detail.accent}</p><h1>{detail.title}</h1><p>{detail.description}</p></div>
+            <div><p className="eyebrow">{activeView === 'overview' ? detail.accent : activeMenuItem.label}</p><h1>{activeView === 'overview' ? detail.title : activeMenuItem.label}</h1><p>{activeView === 'overview' ? detail.description : `Acceso habilitado para el perfil ${session.user.role}.`}</p></div>
             <span className="date-stamp">{currentDate}</span>
           </div>
           <div className="signal-card">
-            <div><p className="eyebrow">Punto de partida</p><h2>Tu panel está listo.</h2><p>Elige una vista para comenzar a trabajar con los resultados Saber Pro.</p></div>
+            <div><p className="eyebrow">Punto de partida</p><h2>{activeView === 'overview' ? 'Tu panel está listo.' : activeMenuItem.label}</h2><p>{activeView === 'overview' ? 'Elige una vista para comenzar a trabajar con los resultados Saber Pro.' : 'Esta sección está disponible según tu rol. Selecciona otra opción para cambiar de módulo.'}</p></div>
             <div className="signal-orbit"><FiActivity aria-hidden="true" /></div>
           </div>
           <div className="metric-row">

@@ -613,3 +613,18 @@ El backend implementa los siguientes patrones:
 
 - `app/database.py`: implementación de `MongoConnection` como Singleton.
 - `app/builders/query_builder.py`: implementación de `QueryBuilder` para construir consultas dinámicas.
+
+### HU-05: Menú de navegación personalizado por rol
+
+El frontend muestra una navegación diferente según el perfil autenticado:
+
+- **Administrador:** resumen, usuarios y permisos, reportes gerenciales, datos y ETL, y estado de la plataforma.
+- **Analista:** resumen, indicadores KPI, reportes analíticos y datos con filtros.
+- **Investigador:** resumen, distribuciones, predicciones y reportes de estudio.
+
+El menú conserva el estado visual activo, permite restaurar la vista desde el fragmento de la URL y se adapta a móviles mediante un panel lateral. El cierre de sesión permanece disponible desde el encabezado en escritorio y móvil.
+
+**Archivos clave:**
+
+- `frontend/src/App.tsx`: configuración central de opciones por rol, estado de navegación y cierre de sesión.
+- `frontend/src/styles.css`: estilos del menú lateral, estados activos, panel móvil y accesibilidad visual.
