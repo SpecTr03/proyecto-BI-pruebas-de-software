@@ -1,5 +1,5 @@
-import { FormEvent, useState } from 'react'
-import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiEye, FiEyeOff, FiLock, FiLogOut, FiMail } from 'react-icons/fi'
+import { FormEvent, useRef, useState } from 'react'
+import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiDownload, FiEye, FiEyeOff, FiLoader, FiLock, FiLogOut, FiMail } from 'react-icons/fi'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { authHeaders, clearSession, getSession, login } from './services/authApi'
 import type { AuthSession, UserRole } from './types'
@@ -89,10 +89,96 @@ function ProtectedRoute({ session, children }: { session: AuthSession | null; ch
 function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const navigate = useNavigate()
   const detail = roleDetails[session.user.role]
-  return <main className="dashboard-shell">
-    <header className="dashboard-header"><div className="dashboard-brand"><BrandMark /><span>SaberPro <b>BI</b></span></div><div className="user-area"><div className="avatar">{session.user.name.charAt(0)}</div><div><strong>{session.user.name}</strong><small>{session.user.role}</small></div><button onClick={() => { onLogout(); navigate('/login', { replace: true }) }} aria-label="Cerrar sesión">Salir <FiLogOut aria-hidden="true" /></button></div></header>
-    <div className="dashboard-body"><aside><p className="eyebrow">Tu espacio</p><nav><a className="active" href="#overview">Resumen <span>01</span></a><a href="#reports">Reportes <span>02</span></a><a href="#data">Datos <span>03</span></a></nav><div className="side-foot"><span>Sesión protegida</span><FiCheckCircle /></div></aside><section className="dashboard-content"><div className="dashboard-intro"><div><p className="eyebrow">{detail.accent}</p><h1>{detail.title}</h1><p>{detail.description}</p></div><span className="date-stamp">07 NOV<br /><b>2026</b></span></div><div className="signal-card"><div><p className="eyebrow">Punto de partida</p><h2>Tu panel está listo.</h2><p>Elige una vista para comenzar a trabajar con los resultados Saber Pro.</p></div><div className="signal-orbit"><FiActivity aria-hidden="true" /></div></div><div className="metric-row"><div><small>Acceso actual</small><strong>{session.user.role}</strong></div><div><small>Estado de sesión</small><strong className="online">Activo <FiCheckCircle aria-hidden="true" /></strong></div><div><small>Próximo paso</small><strong>Explorar datos <FiArrowRight aria-hidden="true" /></strong></div></div></section></div>
-  </main>
+  const contentRef = useRef<HTMLElement>(null)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState('')
+
+  async function exportPdf() {
+    if (!contentRef.current || isExporting) return
+
+    setIsExporting(true)
+    setExportMessage('')
+    try {
+      const { exportDashboardPdf } = await import('./services/dashboardPdf')
+      await exportDashboardPdf(contentRef.current, {
+        title: detail.title,
+        viewerName: session.user.name,
+        viewerRole: session.user.role,
+        activeFilters: [],
+      })
+      setExportMessage('Reporte PDF generado correctamente.')
+    } catch (reason) {
+      setExportMessage(reason instanceof Error ? reason.message : 'No fue posible generar el reporte PDF.')
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const currentDate = new Intl.DateTimeFormat('es-CO', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date())
+
+  return (
+    <main className="dashboard-shell">
+      <header className="dashboard-header">
+        <div className="dashboard-brand"><BrandMark /><span>SaberPro <b>BI</b></span></div>
+        <div className="user-area">
+          <button
+            className="export-button"
+            type="button"
+            onClick={exportPdf}
+            disabled={isExporting}
+            aria-label="Exportar dashboard en PDF"
+          >
+            {isExporting ? <FiLoader className="export-spinner" aria-hidden="true" /> : <FiDownload aria-hidden="true" />}
+            {isExporting ? 'Generando PDF...' : 'Exportar PDF'}
+          </button>
+          <div className="avatar">{session.user.name.charAt(0)}</div>
+          <div><strong>{session.user.name}</strong><small>{session.user.role}</small></div>
+          <button className="logout-button" onClick={() => { onLogout(); navigate('/login', { replace: true }) }} aria-label="Cerrar sesión">Salir <FiLogOut aria-hidden="true" /></button>
+        </div>
+      </header>
+      <div className="dashboard-body">
+        <aside>
+          <p className="eyebrow">Tu espacio</p>
+          <nav>
+            <a className="active" href="#overview">Resumen <span>01</span></a>
+            <a href="#reports">Reportes <span>02</span></a>
+            <a href="#data">Datos <span>03</span></a>
+          </nav>
+          <div className="side-foot"><span>Sesión protegida</span><FiCheckCircle /></div>
+        </aside>
+        <section ref={contentRef} className="dashboard-content" id="overview">
+          <div className="dashboard-intro">
+            <div><p className="eyebrow">{detail.accent}</p><h1>{detail.title}</h1><p>{detail.description}</p></div>
+            <span className="date-stamp">{currentDate}</span>
+          </div>
+          <div className="signal-card">
+            <div><p className="eyebrow">Punto de partida</p><h2>Tu panel está listo.</h2><p>Elige una vista para comenzar a trabajar con los resultados Saber Pro.</p></div>
+            <div className="signal-orbit"><FiActivity aria-hidden="true" /></div>
+          </div>
+          <div className="metric-row">
+            <div><small>Acceso actual</small><strong>{session.user.role}</strong></div>
+            <div><small>Estado de sesión</small><strong className="online">Activo <FiCheckCircle aria-hidden="true" /></strong></div>
+            <div><small>Próximo paso</small><strong>Explorar datos <FiArrowRight aria-hidden="true" /></strong></div>
+          </div>
+        </section>
+      </div>
+      {exportMessage && (
+        <div
+          className={`export-feedback ${exportMessage.startsWith('Reporte') ? 'is-success' : 'is-error'}`}
+          role="status"
+          aria-live="polite"
+        >
+          {exportMessage.startsWith('Reporte') ? <FiCheckCircle aria-hidden="true" /> : <FiAlertCircle aria-hidden="true" />}
+          <span>{exportMessage}</span>
+          <button type="button" onClick={() => setExportMessage('')} aria-label="Cerrar mensaje">×</button>
+        </div>
+      )}
+    </main>
+  )
 }
 
 export default function App() {

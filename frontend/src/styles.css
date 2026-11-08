@@ -36,3 +36,33 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .signal-orbit svg { width: 65px; height: 65px; color: #e2785b; stroke-width: 1; }
 .metric-row .online { display: inline-flex; }
 .metric-row strong svg { width: 13px; height: 13px; }
+.user-area .export-button { height: 38px; border: 1px solid #b5c0bb; border-radius: 3px; background: transparent; color: #183c43; margin: 0 8px 0 0; padding: 0 13px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 7px; transition: border-color .2s, background .2s, color .2s; }
+.user-area .export-button svg { width: 14px; height: 14px; color: currentColor; }
+.user-area .export-button:hover:not(:disabled) { border-color: #467972; background: #edf1eb; }
+.user-area .export-button:disabled { cursor: wait; opacity: .65; }
+.user-area .logout-button { margin-left: 19px; }
+.export-spinner { animation: export-spin .9s linear infinite; }
+.export-feedback { position: fixed; right: 24px; bottom: 24px; z-index: 20; width: min(390px, calc(100vw - 48px)); min-height: 54px; border-left: 3px solid; background: #fffdf7; box-shadow: 0 12px 32px rgba(24, 60, 67, .16); display: grid; grid-template-columns: 18px 1fr 28px; align-items: center; gap: 10px; padding: 12px 10px 12px 14px; color: #183c43; font-size: 12px; }
+.export-feedback svg { width: 17px; height: 17px; }
+.export-feedback.is-success { border-color: #73a77d; }
+.export-feedback.is-success svg { color: #73a77d; }
+.export-feedback.is-error { border-color: #d86f55; }
+.export-feedback.is-error svg { color: #d86f55; }
+.export-feedback button { border: 0; background: transparent; color: #81908c; cursor: pointer; font-size: 18px; line-height: 1; }
+@keyframes export-spin { to { transform: rotate(360deg); } }
+@media (max-width: 760px) {
+  .dashboard-header { height: auto; min-height: 82px; padding-block: 12px; gap: 12px; }
+  .dashboard-brand { display: none; }
+  .user-area { width: 100%; justify-content: flex-end; }
+  .user-area .export-button { margin-right: auto; }
+  .user-area .avatar, .user-area strong, .user-area small { display: none; }
+  .user-area .logout-button { margin-left: 4px; }
+  .dashboard-body { grid-template-columns: 1fr; }
+  .dashboard-body aside { display: none; }
+  .dashboard-content { padding: 38px 24px; }
+  .date-stamp { display: none; }
+  .signal-card { margin-top: 42px; padding: 32px 26px; }
+  .signal-orbit { display: none !important; }
+  .metric-row { grid-template-columns: 1fr; }
+  .metric-row > div { min-height: 76px; }
+}

@@ -61,6 +61,17 @@ La respuesta esperada es una sesión con `accessToken`, `tokenType`, `expiresAt`
 Las peticiones protegidas pueden reutilizar `authHeaders()` para enviar
 `Authorization: Bearer <token>`.
 
+### Exportación gerencial del dashboard (HU29)
+
+El dashboard permite descargar su vista activa como un reporte PDF desde el
+botón **Exportar PDF**. La exportación incluye el título de la vista, el usuario
+y rol de la sesión, los filtros activos y la fecha de generación.
+
+La implementación se encuentra en `frontend/src/services/dashboardPdf.ts`.
+`html2canvas` captura el contenido y `jsPDF` genera el documento en formato A4,
+con paginación automática y pie de página. Las librerías se cargan únicamente al
+solicitar la exportación para no aumentar la carga inicial de la aplicación.
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.
