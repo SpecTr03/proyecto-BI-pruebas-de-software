@@ -32,7 +32,8 @@ def _auth_base_url() -> str:
 
 
 def _auth_origin() -> str:
-    return os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    origins = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
+    return origins.split(",", 1)[0].strip()
 
 
 @router.post(

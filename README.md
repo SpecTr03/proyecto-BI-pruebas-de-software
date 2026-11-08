@@ -128,6 +128,10 @@ scripts/    ETL y carga hacia NoSQL
 docs/       Documentación e imágenes
 ```
 
+Documentación adicional:
+
+- [7.8 Historias de usuario e iteraciones del proyecto](./docs/7.8-historias-de-usuario-e-iteraciones.md)
+
 ## Ejecutar el notebook
 
 ```powershell
