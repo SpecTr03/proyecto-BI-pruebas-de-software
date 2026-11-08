@@ -10,6 +10,34 @@ Proyecto final de pruebas de software que tiene como objetivo crear un proceso E
 - Frontend: **JavaScript/TypeScript, React y Vite**.
 - Visualización: **Plotly, Chart.js o D3.js**.
 
+## Frontend de autenticación (HU01)
+
+La pantalla de acceso está implementada en `frontend/` con React, TypeScript y
+Vite. Incluye guardas para `/dashboard`, sesión persistida con expiración y
+menús/dashboards según el rol: Administrador, Analista o Investigador.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Mientras el endpoint de autenticación no esté disponible, la interfaz usa un
+modo demo local. Para conectarla a FastAPI, define `VITE_API_URL` (o usa el
+proxy de Vite en desarrollo) y expón `POST /api/auth/login` con este contrato:
+
+```json
+{
+  "email": "nombre@universidad.edu.co",
+  "password": "••••••••"
+}
+```
+
+La respuesta esperada es una sesión con `accessToken`, `tokenType`, `expiresAt`
+(opcional, en milisegundos) y `user` con `id`, `name`, `email` y `role`.
+Las peticiones protegidas pueden reutilizar `authHeaders()` para enviar
+`Authorization: Bearer <token>`.
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.
@@ -245,6 +273,23 @@ INICIO
   Imprimir("Carga finalizada. Total en BD: " + conteo_final)
 FIN
 ```
+
+### Reporte post-ETL
+
+El notebook `notebooks/resultados-saber-pro-analisis.ipynb` es la fuente
+oficial de limpieza. Su última celda exporta el resultado a
+`data/Resultados_Saber_Pro_limpio.csv` y genera `reports/post_etl_report.json`
+con las filas leídas, limpias, descartadas y el detalle de los descartes.
+
+Después de ejecutar el notebook, el cargador toma únicamente el CSV limpio:
+
+```bash
+python3 scripts/populate_nosql.py \
+  --csv data/Resultados_Saber_Pro_limpio.csv
+```
+
+`scripts/populate_nosql.py` no repite la depuración; solo transforma cada fila
+limpia al esquema estrella y la carga en MongoDB.
 
 ```python 
 import pandas as pd 
