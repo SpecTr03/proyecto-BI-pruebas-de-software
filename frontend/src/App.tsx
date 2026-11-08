@@ -1,10 +1,11 @@
 import { FormEvent, useState } from 'react'
+import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiEye, FiEyeOff, FiLock, FiLogOut, FiMail } from 'react-icons/fi'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { authHeaders, clearSession, getSession, login } from './services/authApi'
 import type { AuthSession, UserRole } from './types'
 
 function BrandMark() {
-  return <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
+  return <FiBarChart2 className="brand-mark" aria-hidden="true" />
 }
 
 function LoginPage({ onLogin }: { onLogin: (session: AuthSession) => void }) {
@@ -34,7 +35,7 @@ function LoginPage({ onLogin }: { onLogin: (session: AuthSession) => void }) {
     <main className="login-shell">
       <section className="login-story" aria-label="SaberPro BI">
         <div className="story-grid" />
-        <div className="story-topline"><BrandMark /><span>SaberPro BI</span><span className="story-status"><i /> plataforma activa</span></div>
+        <div className="story-topline"><BrandMark /><span>SaberPro BI</span><span className="story-status"><FiCheckCircle /> plataforma activa</span></div>
         <div className="story-content">
           <p className="eyebrow">Inteligencia para la educación superior</p>
           <h1>Las decisiones<br /><em>empiezan</em> con datos.</h1>
@@ -50,22 +51,22 @@ function LoginPage({ onLogin }: { onLogin: (session: AuthSession) => void }) {
             <h2>Bienvenido de nuevo</h2>
             <p>Ingresa tus credenciales para continuar al centro de análisis.</p>
           </div>
-          <form onSubmit={submit} noValidate>
+          <form onSubmit={submit}>
             <label htmlFor="email">Correo institucional</label>
             <div className="input-wrap">
-              <span className="input-icon">@</span>
+              <FiMail className="input-icon" aria-hidden="true" />
               <input id="email" type="email" autoComplete="email" placeholder="nombre@universidad.edu.co" value={email} onChange={(event) => setEmail(event.target.value)} required />
             </div>
             <div className="label-row"><label htmlFor="password">Contraseña</label><a href="#help" onClick={(event) => event.preventDefault()}>¿Necesitas ayuda?</a></div>
             <div className="input-wrap">
-              <span className="input-icon">••</span>
+              <FiLock className="input-icon" aria-hidden="true" />
               <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Mínimo 6 caracteres" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required />
-              <button type="button" className="visibility" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? 'ocultar' : 'ver'}</button>
+              <button type="button" className="visibility" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <FiEyeOff /> : <FiEye />}</button>
             </div>
-            {error && <div className="form-error" role="alert"><span>!</span>{error}</div>}
-            <button className="submit-button" type="submit" disabled={loading}>{loading ? 'Verificando…' : 'Iniciar sesión'}<span aria-hidden="true">↗</span></button>
+            {error && <div className="form-error" role="alert"><FiAlertCircle />{error}</div>}
+            <button className="submit-button" type="submit" disabled={loading}>{loading ? 'Verificando...' : 'Iniciar sesión'}<FiArrowUpRight aria-hidden="true" /></button>
           </form>
-          <p className="login-note"><span className="lock">⌑</span> Tus datos viajan protegidos y solo tú puedes acceder a ellos.</p>
+          <p className="login-note"><FiLock className="lock" aria-hidden="true" /> Tus datos viajan protegidos y solo tú puedes acceder a ellos.</p>
           <p className="demo-hint">Modo demostración: cualquier correo válido y contraseña de 6+ caracteres.<br />Usa <strong>admin</strong> o <strong>investigador</strong> en el correo para probar cada rol.</p>
         </div>
         <span className="panel-index">SBI / 01</span>
@@ -89,8 +90,8 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
   const navigate = useNavigate()
   const detail = roleDetails[session.user.role]
   return <main className="dashboard-shell">
-    <header className="dashboard-header"><div className="dashboard-brand"><BrandMark /><span>SaberPro <b>BI</b></span></div><div className="user-area"><div className="avatar">{session.user.name.charAt(0)}</div><div><strong>{session.user.name}</strong><small>{session.user.role}</small></div><button onClick={() => { onLogout(); navigate('/login', { replace: true }) }} aria-label="Cerrar sesión">Salir ↗</button></div></header>
-    <div className="dashboard-body"><aside><p className="eyebrow">Tu espacio</p><nav><a className="active" href="#overview">Resumen <span>01</span></a><a href="#reports">Reportes <span>02</span></a><a href="#data">Datos <span>03</span></a></nav><div className="side-foot"><span>Sesión protegida</span><i /></div></aside><section className="dashboard-content"><div className="dashboard-intro"><div><p className="eyebrow">{detail.accent}</p><h1>{detail.title}</h1><p>{detail.description}</p></div><span className="date-stamp">07 NOV<br /><b>2026</b></span></div><div className="signal-card"><div><p className="eyebrow">Punto de partida</p><h2>Tu panel está listo.</h2><p>Elige una vista para comenzar a trabajar con los resultados Saber Pro.</p></div><div className="signal-orbit"><span /><span /><span /></div></div><div className="metric-row"><div><small>Acceso actual</small><strong>{session.user.role}</strong></div><div><small>Estado de sesión</small><strong className="online">Activo <i /></strong></div><div><small>Próximo paso</small><strong>Explorar datos <span>→</span></strong></div></div></section></div>
+    <header className="dashboard-header"><div className="dashboard-brand"><BrandMark /><span>SaberPro <b>BI</b></span></div><div className="user-area"><div className="avatar">{session.user.name.charAt(0)}</div><div><strong>{session.user.name}</strong><small>{session.user.role}</small></div><button onClick={() => { onLogout(); navigate('/login', { replace: true }) }} aria-label="Cerrar sesión">Salir <FiLogOut aria-hidden="true" /></button></div></header>
+    <div className="dashboard-body"><aside><p className="eyebrow">Tu espacio</p><nav><a className="active" href="#overview">Resumen <span>01</span></a><a href="#reports">Reportes <span>02</span></a><a href="#data">Datos <span>03</span></a></nav><div className="side-foot"><span>Sesión protegida</span><FiCheckCircle /></div></aside><section className="dashboard-content"><div className="dashboard-intro"><div><p className="eyebrow">{detail.accent}</p><h1>{detail.title}</h1><p>{detail.description}</p></div><span className="date-stamp">07 NOV<br /><b>2026</b></span></div><div className="signal-card"><div><p className="eyebrow">Punto de partida</p><h2>Tu panel está listo.</h2><p>Elige una vista para comenzar a trabajar con los resultados Saber Pro.</p></div><div className="signal-orbit"><FiActivity aria-hidden="true" /></div></div><div className="metric-row"><div><small>Acceso actual</small><strong>{session.user.role}</strong></div><div><small>Estado de sesión</small><strong className="online">Activo <FiCheckCircle aria-hidden="true" /></strong></div><div><small>Próximo paso</small><strong>Explorar datos <FiArrowRight aria-hidden="true" /></strong></div></div></section></div>
   </main>
 }
 
