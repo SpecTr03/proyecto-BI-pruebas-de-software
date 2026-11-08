@@ -86,6 +86,17 @@ La respuesta esperada es una sesión con `accessToken`, `tokenType`, `expiresAt`
 Las peticiones protegidas pueden reutilizar `authHeaders()` para enviar
 `Authorization: Bearer <token>`.
 
+### Exportación gerencial del dashboard (HU29)
+
+El dashboard permite descargar su vista activa como un reporte PDF desde el
+botón **Exportar PDF**. La exportación incluye el título de la vista, el usuario
+y rol de la sesión, los filtros activos y la fecha de generación.
+
+La implementación se encuentra en `frontend/src/services/dashboardPdf.ts`.
+`html2canvas` captura el contenido y `jsPDF` genera el documento en formato A4,
+con paginación automática y pie de página. Las librerías se cargan únicamente al
+solicitar la exportación para no aumentar la carga inicial de la aplicación.
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.
@@ -116,6 +127,10 @@ notebooks/  Análisis exploratorio y prototipado
 scripts/    ETL y carga hacia NoSQL
 docs/       Documentación e imágenes
 ```
+
+Documentación adicional:
+
+- [7.8 Historias de usuario e iteraciones del proyecto](./docs/7.8-historias-de-usuario-e-iteraciones.md)
 
 ## Ejecutar el notebook
 
@@ -627,3 +642,18 @@ El backend implementa los siguientes patrones:
 
 - `app/database.py`: implementación de `MongoConnection` como Singleton.
 - `app/builders/query_builder.py`: implementación de `QueryBuilder` para construir consultas dinámicas.
+
+### HU-05: Menú de navegación personalizado por rol
+
+El frontend muestra una navegación diferente según el perfil autenticado:
+
+- **Administrador:** resumen, usuarios y permisos, reportes gerenciales, datos y ETL, y estado de la plataforma.
+- **Analista:** resumen, indicadores KPI, reportes analíticos y datos con filtros.
+- **Investigador:** resumen, distribuciones, predicciones y reportes de estudio.
+
+El menú conserva el estado visual activo, permite restaurar la vista desde el fragmento de la URL y se adapta a móviles mediante un panel lateral. El cierre de sesión permanece disponible desde el encabezado en escritorio y móvil.
+
+**Archivos clave:**
+
+- `frontend/src/App.tsx`: configuración central de opciones por rol, estado de navegación y cierre de sesión.
+- `frontend/src/styles.css`: estilos del menú lateral, estados activos, panel móvil y accesibilidad visual.

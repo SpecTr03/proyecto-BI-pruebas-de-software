@@ -26,6 +26,7 @@ from .routes.kpis import router as kpis_router
 from .routes.neon import router as neon_router
 from .routes.prediccion import router as prediccion_router
 from .routes.salud_bd import router as salud_bd_router
+from .routes.users import router as users_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -86,6 +87,7 @@ app.include_router(kpis_router, prefix="/api")
 app.include_router(filtros_router, prefix="/api")
 app.include_router(prediccion_router, prefix="/api")
 app.include_router(salud_bd_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 
 
 @app.get("/", tags=["Root"], summary="Información básica de la API")
