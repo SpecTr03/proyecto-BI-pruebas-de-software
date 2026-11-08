@@ -1,0 +1,13 @@
+{
+  "archivo_origen": "../data/Resultados_Saber_Pro_20260927.csv",
+  "archivo_limpio": "../data/Resultados_Saber_Pro_limpio.csv",
+  "filas_leidas": 1217482,
+  "filas_limpias": 1208530,
+  "filas_descartadas": 8952,
+  "detalle_descartes": {
+    "sin_departamento": 3393,
+    "duplicados": 5026
+  },
+  "porcentaje_descartado": 0.7353,
+  "estado": "EXITOSO"
+}

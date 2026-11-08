@@ -1,12 +1,12 @@
-"""Carga el CSV depurado de Saber Pro en MongoDB con un Esquema de Estrella.
+"""Carga un CSV depurado de Saber Pro en MongoDB con un Esquema de Estrella.
 
 Colecciones:
     Fact_Resultados, Dim_Tiempo, Dim_Estudiante, Dim_Institucion,
     Dim_Programa y Dim_Ubicacion_Examen.
 
-El script aplica la limpieza base del notebook:
-    1. Elimina filas con ESTU_DEPTO_RESIDE nulo.
-    2. Elimina duplicados por ESTU_CONSECUTIVO conservando la primera aparición.
+La limpieza y el reporte post-ETL se realizan en el notebook
+``notebooks/resultados-saber-pro-analisis.ipynb``. Este script recibe el CSV
+limpio y se ocupa únicamente de transformarlo al esquema estrella y cargarlo.
 
 Patrones y requisitos implementados:
     - Singleton para la conexión a MongoDB.
@@ -25,6 +25,7 @@ import logging
 import os
 import threading
 import time
+
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Mapping
@@ -47,7 +48,7 @@ from pymongo.results import BulkWriteResult
 # Configuración
 # ---------------------------------------------------------------------------
 
-DEFAULT_CSV = Path(__file__).resolve().parents[1] / "data" / "Resultados_Saber_Pro_20260927.csv"
+DEFAULT_CSV = Path(__file__).resolve().parents[1] / "data" / "Resultados_Saber_Pro_limpio.csv"
 DEFAULT_MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 DEFAULT_DATABASE = os.getenv("MONGO_DATABASE", "SaberProDB")
 DEFAULT_FACT_COLLECTION = "Fact_Resultados"
@@ -454,31 +455,7 @@ def read_available_columns(csv_path: Path, encoding: str) -> list[str]:
     missing = REQUIRED_COLUMNS - set(available)
     if missing:
         raise RuntimeError("Faltan columnas obligatorias: " + ", ".join(sorted(missing)))
-    if "ESTU_DEPTO_RESIDE" not in available:
-        logging.warning("No existe ESTU_DEPTO_RESIDE; no se aplicará el filtro de nulos.")
     return available
-
-
-def clean_chunk(
-    chunk: pd.DataFrame,
-    seen_consecutivos: set[str],
-) -> tuple[pd.DataFrame, int, int, int]:
-    """Aplica dropna de departamento y deduplicación global por consecutivo."""
-    rows_read = len(chunk)
-
-    if "ESTU_DEPTO_RESIDE" in chunk.columns:
-        chunk = chunk.dropna(subset=["ESTU_DEPTO_RESIDE"])
-    chunk = chunk.dropna(subset=["ESTU_CONSECUTIVO"]).copy()
-    chunk["ESTU_CONSECUTIVO"] = chunk["ESTU_CONSECUTIVO"].astype(str).str.strip()
-    chunk = chunk[chunk["ESTU_CONSECUTIVO"] != ""]
-    rows_after_null = len(chunk)
-
-    chunk = chunk.drop_duplicates(subset=["ESTU_CONSECUTIVO"], keep="first")
-    if not chunk.empty:
-        chunk = chunk.loc[~chunk["ESTU_CONSECUTIVO"].isin(seen_consecutivos)].copy()
-        seen_consecutivos.update(chunk["ESTU_CONSECUTIVO"].tolist())
-
-    return chunk, rows_read, rows_after_null, len(chunk)
 
 
 # ---------------------------------------------------------------------------
@@ -615,9 +592,7 @@ def print_summary(
             count = -1
         print(f"{name:<24} {count:>14,} documentos")
     print("-" * 64)
-    print(f"Filas leídas:              {stats['rows_read']:>14,}")
-    print(f"Filas tras nulos:          {stats['rows_after_null']:>14,}")
-    print(f"Filas tras duplicados:     {stats['rows_after_dedup']:>14,}")
+    print(f"Filas del CSV limpio:      {stats['rows_read']:>14,}")
     print(f"Hechos insertados:         {stats['facts_inserted']:>14,}")
     print(f"Dimensiones upsertadas:    {stats['dim_upserted']:>14,}")
     print(f"Dimensiones ya existentes: {stats['dim_matched']:>14,}")
@@ -687,8 +662,6 @@ def main() -> int:
     started = time.perf_counter()
     stats = {
         "rows_read": 0,
-        "rows_after_null": 0,
-        "rows_after_dedup": 0,
         "facts_inserted": 0,
         "dim_upserted": 0,
         "dim_matched": 0,
@@ -713,8 +686,6 @@ def main() -> int:
         create_indexes(database, args.collection)
 
         builder = DocumentBuilder()
-        seen_consecutivos: set[str] = set()
-
         chunks = pd.read_csv(
             args.csv,
             chunksize=args.batch_size,
@@ -724,15 +695,11 @@ def main() -> int:
         )
 
         for chunk_number, chunk in enumerate(chunks, start=1):
-            clean, rows_read, rows_after_null, rows_after_dedup = clean_chunk(
-                chunk, seen_consecutivos
-            )
-            stats["rows_read"] += rows_read
-            stats["rows_after_null"] += rows_after_null
-            stats["rows_after_dedup"] += rows_after_dedup
+            clean = chunk
+            stats["rows_read"] += len(clean)
 
             if clean.empty:
-                logging.info("Lote %d sin filas útiles; se omite.", chunk_number)
+                logging.info("Lote %d vacío; se omite.", chunk_number)
                 continue
 
             dimensions: dict[str, dict[ObjectId, dict[str, Any]]] = {
@@ -762,10 +729,9 @@ def main() -> int:
             )
 
             logging.info(
-                "Lote %d: %d leídas, %d tras limpieza, %d hechos acumulados.",
+                "Lote %d: %d leídas, %d hechos acumulados.",
                 chunk_number,
-                rows_read,
-                rows_after_dedup,
+                len(clean),
                 stats["facts_inserted"],
             )
 
