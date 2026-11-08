@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from ..auth import require_permission
 from ..controllers.prediccion_controller import (
     ModeloNoDisponibleError,
     predecir,
@@ -14,7 +15,11 @@ from ..models.prediccion import PrediccionInput, PrediccionResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/predecir", tags=["Predicción"])
+router = APIRouter(
+    prefix="/predecir",
+    tags=["Predicción"],
+    dependencies=[Depends(require_permission("dashboard:read"))],
+)
 
 
 @router.post(

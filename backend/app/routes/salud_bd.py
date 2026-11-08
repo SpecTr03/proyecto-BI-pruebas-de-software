@@ -5,16 +5,21 @@ from __future__ import annotations
 import logging
 import time
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
 
 from ..database import mongo_connection
+from ..auth import require_permission
 from ..models.salud import SaludBDResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/salud-bd", tags=["Salud BD"])
+router = APIRouter(
+    prefix="/salud-bd",
+    tags=["Salud BD"],
+    dependencies=[Depends(require_permission("dashboard:read"))],
+)
 
 COLECCIONES = (
     "Fact_Resultados",
