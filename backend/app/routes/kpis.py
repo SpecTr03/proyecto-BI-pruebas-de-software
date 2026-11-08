@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 
+from ..auth import require_permission
 from ..controllers.kpi_controller import (
     DEFAULT_METRIC,
     calcular_kpi,
@@ -16,7 +17,11 @@ from ..models.kpi import (
     KpiResponse,
 )
 
-router = APIRouter(prefix="/kpis", tags=["KPIs"])
+router = APIRouter(
+    prefix="/kpis",
+    tags=["KPIs"],
+    dependencies=[Depends(require_permission("dashboard:read"))],
+)
 
 
 def _obtener_filtros_dashboard(

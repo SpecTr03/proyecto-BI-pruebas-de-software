@@ -60,7 +60,7 @@ function LoginPage({ onLogin }: { onLogin: (session: AuthSession) => void }) {
             <div className="label-row"><label htmlFor="password">Contraseña</label><a href="#help" onClick={(event) => event.preventDefault()}>¿Necesitas ayuda?</a></div>
             <div className="input-wrap">
               <FiLock className="input-icon" aria-hidden="true" />
-              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Mínimo 6 caracteres" value={password} onChange={(event) => setPassword(event.target.value)} minLength={6} required />
+              <input id="password" type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Mínimo 8 caracteres" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />
               <button type="button" className="visibility" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}>{showPassword ? <FiEyeOff /> : <FiEye />}</button>
             </div>
             {error && <div className="form-error" role="alert"><FiAlertCircle />{error}</div>}

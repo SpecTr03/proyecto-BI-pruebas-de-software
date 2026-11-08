@@ -8,15 +8,20 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.errors import PyMongoError
 
 from ..database import mongo_connection
+from ..auth import require_permission
 from ..models.filtro import FiltroResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/filtros", tags=["Filtros"])
+router = APIRouter(
+    prefix="/filtros",
+    tags=["Filtros"],
+    dependencies=[Depends(require_permission("dashboard:read"))],
+)
 
 
 def _obtener_valores_distintos(

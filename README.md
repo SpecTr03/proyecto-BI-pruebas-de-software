@@ -13,9 +13,9 @@ Proyecto final de pruebas de software que tiene como objetivo crear un proceso E
 ## Frontend de autenticación (HU01)
 
 La pantalla de acceso está implementada en `frontend/` con React, TypeScript,
-Vite y Neon Managed Auth. Incluye guardas para `/dashboard`, sesión persistida
-con expiración y menús/dashboards según el rol: Administrador, Analista o
-Investigador.
+Vite y la API de autenticación de FastAPI. Incluye guardas para `/dashboard`,
+sesión persistida con expiración y menús/dashboards según el rol:
+Administrador, Analista o Investigador.
 
 ```bash
 cd frontend
@@ -23,11 +23,15 @@ npm install
 npm run dev
 ```
 
-Para usar el servicio de autenticación desplegado, define
-`VITE_NEON_AUTH_URL` en `frontend/.env.local` con el valor de
-`NEON_AUTH_BASE_URL` generado por `neon deploy`. En Vite, el valor de Auth es
-público; no expongas `DATABASE_URL` al frontend. La interfaz usa
-`@neon/auth` para `signIn.email` y `signOut`.
+En `frontend/.env.local`, define `VITE_API_URL` con la URL del backend
+(por ejemplo, `http://127.0.0.1:8000`). El formulario siempre envía las
+credenciales a `POST /api/auth/login`; no se conecta directamente a Neon Auth
+ni deduce el rol a partir del correo. El backend debe tener
+`FRONTEND_ORIGIN` configurado con el origen de Vite para permitir CORS.
+
+Durante el desarrollo también puedes omitir `VITE_API_URL`: Vite redirige
+`/api` mediante el proxy configurado en `frontend/vite.config.ts`. Nunca
+expongas `DATABASE_URL` al frontend.
 
 El backend expone `GET /api/health/neon`, que ejecuta `SELECT 1` contra
 `DATABASE_URL` usando el driver `psycopg`. La URL agrupada (`DATABASE_URL`) es
@@ -45,6 +49,27 @@ registrarlo en Neon Auth:
 INSERT INTO app.users (id, email, role)
 VALUES ('UUID_DEL_USUARIO_NEON', 'usuario@universidad.edu.co', 'Analista');
 ```
+
+### API de autenticación
+
+`POST /api/auth/login` recibe `email` y `password`, delega la validación de
+credenciales a Neon Auth y exige que el usuario tenga un registro activo en
+`app.users`. La respuesta contiene un JWT de aplicación firmado por el backend,
+con `role`, `permissions` y vencimiento de ocho horas:
+
+```json
+{
+  "email": "usuario@universidad.edu.co",
+  "password": "********"
+}
+```
+
+Las rutas de KPIs, filtros, predicción y salud de la base de datos exigen
+`Authorization: Bearer <access_token>`. `GET /api/auth/me` valida el token y
+`GET /api/auth/permissions` devuelve los permisos efectivos. Configura
+`NEON_AUTH_BASE_URL`, `NEON_AUTH_JWKS_URL` y `APP_JWT_SECRET` con los valores
+del proyecto Neon. El secreto de aplicación debe tener al menos 32 caracteres;
+no lo incluyas en el repositorio.
 
 Si se necesita conservar un proveedor de autenticación propio, también se
 puede definir `VITE_API_URL` y exponer `POST /api/auth/login` con este contrato:

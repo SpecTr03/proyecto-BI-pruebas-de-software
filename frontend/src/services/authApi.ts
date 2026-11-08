@@ -1,48 +1,61 @@
 import type { AuthSession, LoginPayload } from '../types'
-import { createAuthClient } from '@neon/auth'
 
 const SESSION_KEY = 'saberpro-bi.auth.v1'
-const API_URL = import.meta.env.VITE_API_URL ?? ''
-const NEON_AUTH_URL = import.meta.env.VITE_NEON_AUTH_URL
-const authClient = createAuthClient(NEON_AUTH_URL)
+const API_ORIGIN = (import.meta.env.VITE_API_URL ?? '').replace(/\/$/, '')
+const LOGIN_URL = API_ORIGIN
+  ? `${API_ORIGIN}/api/auth/login`
+  : '/api/auth/login'
 
 function isAuthSession(value: unknown): value is AuthSession {
   if (!value || typeof value !== 'object') return false
   const session = value as Partial<AuthSession>
-  return Boolean(session.accessToken && session.user?.email && session.user?.role)
+  return Boolean(
+    session.accessToken &&
+      session.tokenType &&
+      session.user?.id &&
+      session.user?.email &&
+      session.user?.role &&
+      (session.expiresAt === undefined || Number.isFinite(session.expiresAt)),
+  )
+}
+
+async function getApiError(response: Response): Promise<string> {
+  try {
+    const body = await response.json() as { detail?: unknown; message?: unknown }
+    if (typeof body.detail === 'string') return body.detail
+    if (typeof body.message === 'string') return body.message
+  } catch {
+    // The API may return an empty or non-JSON error body.
+  }
+  return 'No fue posible iniciar sesión. Inténtalo de nuevo.'
 }
 
 export async function login(payload: LoginPayload): Promise<AuthSession> {
-  if (API_URL) {
-    const response = await fetch(`${API_URL}/api/auth/login`, {
+  let response: Response
+  try {
+    response = await fetch(LOGIN_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
-    if (!response.ok) throw new Error('El correo o la contraseña no son correctos.')
-    const data: AuthSession = await response.json()
-    if (!isAuthSession(data)) throw new Error('La respuesta de autenticación no es válida.')
-    saveSession(data)
-    return data
+  } catch {
+    throw new Error('No se pudo conectar con el servidor. Verifica que la API esté activa.')
   }
-
-  const { data, error } = await authClient.signIn.email(payload)
-  if (error || !data?.user) {
-    throw new Error(error?.message ?? 'El correo o la contraseña no son correctos.')
+  if (!response.ok) throw new Error(await getApiError(response))
+  const raw = await response.json() as {
+    access_token: string
+    token_type: string
+    expires_at: string
+    user: AuthSession['user']
   }
-
+  const expiresAt = Date.parse(raw.expires_at)
   const session: AuthSession = {
-    accessToken: data.token,
-    tokenType: 'Bearer',
-    user: {
-      id: data.user.id,
-      name: data.user.name,
-      email: data.user.email,
-      role: data.user.email.includes('admin')
-        ? 'Administrador'
-        : data.user.email.includes('investigador') ? 'Investigador' : 'Analista',
-    },
+    accessToken: raw.access_token,
+    tokenType: raw.token_type,
+    expiresAt,
+    user: raw.user,
   }
+  if (!isAuthSession(session)) throw new Error('La respuesta de autenticación no es válida.')
   saveSession(session)
   return session
 }
@@ -70,7 +83,6 @@ export function saveSession(session: AuthSession) {
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY)
-  void authClient.signOut()
 }
 
 export function authHeaders(): Record<string, string> {

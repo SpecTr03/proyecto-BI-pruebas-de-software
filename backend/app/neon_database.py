@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import Iterator
 
 import psycopg
+from psycopg.rows import dict_row
 
 
 class NeonDatabase:
@@ -33,6 +34,24 @@ class NeonDatabase:
             return True
         except (ConnectionError, psycopg.Error):
             return False
+
+    def get_app_user(self, user_id: str) -> dict[str, str] | None:
+        """Obtiene el usuario Neon y su rol activo de la aplicación."""
+        try:
+            with self.connection() as connection:
+                with connection.cursor(row_factory=dict_row) as cursor:
+                    row = cursor.execute(
+                        """
+                        SELECT u.id::text, u.name, u.email, a.role::text
+                        FROM neon_auth."user" AS u
+                        JOIN app.users AS a ON a.id = u.id
+                        WHERE u.id = %s AND a.is_active
+                        """,
+                        (user_id,),
+                    ).fetchone()
+            return dict(row) if row else None
+        except psycopg.Error as exc:
+            raise ConnectionError("No fue posible consultar el usuario en Neon.") from exc
 
 
 neon_database = NeonDatabase()
