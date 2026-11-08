@@ -67,7 +67,7 @@ function LoginPage({ onLogin }: { onLogin: (session: AuthSession) => void }) {
             <button className="submit-button" type="submit" disabled={loading}>{loading ? 'Verificando...' : 'Iniciar sesión'}<FiArrowUpRight aria-hidden="true" /></button>
           </form>
           <p className="login-note"><FiLock className="lock" aria-hidden="true" /> Tus datos viajan protegidos y solo tú puedes acceder a ellos.</p>
-          <p className="demo-hint">Modo demostración: cualquier correo válido y contraseña de 6+ caracteres.<br />Usa <strong>admin</strong> o <strong>investigador</strong> en el correo para probar cada rol.</p>
+          <p className="demo-hint">El acceso usa Neon Auth. Solicita una cuenta al administrador de la plataforma.</p>
         </div>
         <span className="panel-index">SBI / 01</span>
       </section>

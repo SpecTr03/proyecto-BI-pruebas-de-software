@@ -1,7 +1,10 @@
 import type { AuthSession, LoginPayload } from '../types'
+import { createAuthClient } from '@neon/auth'
 
 const SESSION_KEY = 'saberpro-bi.auth.v1'
 const API_URL = import.meta.env.VITE_API_URL ?? ''
+const NEON_AUTH_URL = import.meta.env.VITE_NEON_AUTH_URL
+const authClient = createAuthClient(NEON_AUTH_URL)
 
 function isAuthSession(value: unknown): value is AuthSession {
   if (!value || typeof value !== 'object') return false
@@ -10,27 +13,38 @@ function isAuthSession(value: unknown): value is AuthSession {
 }
 
 export async function login(payload: LoginPayload): Promise<AuthSession> {
-  if (!API_URL) {
-    return demoLogin(payload)
+  if (API_URL) {
+    const response = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error('El correo o la contraseña no son correctos.')
+    const data: AuthSession = await response.json()
+    if (!isAuthSession(data)) throw new Error('La respuesta de autenticación no es válida.')
+    saveSession(data)
+    return data
   }
 
-  const response = await fetch(`${API_URL}/api/auth/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  })
-
-  if (!response.ok) {
-    const message = response.status === 401
-      ? 'El correo o la contraseña no son correctos.'
-      : 'No fue posible conectar con el servicio de acceso.'
-    throw new Error(message)
+  const { data, error } = await authClient.signIn.email(payload)
+  if (error || !data?.user) {
+    throw new Error(error?.message ?? 'El correo o la contraseña no son correctos.')
   }
 
-  const data: AuthSession = await response.json()
-  if (!isAuthSession(data)) throw new Error('La respuesta de autenticación no es válida.')
-  saveSession(data)
-  return data
+  const session: AuthSession = {
+    accessToken: data.token,
+    tokenType: 'Bearer',
+    user: {
+      id: data.user.id,
+      name: data.user.name,
+      email: data.user.email,
+      role: data.user.email.includes('admin')
+        ? 'Administrador'
+        : data.user.email.includes('investigador') ? 'Investigador' : 'Analista',
+    },
+  }
+  saveSession(session)
+  return session
 }
 
 export function getSession(): AuthSession | null {
@@ -56,34 +70,10 @@ export function saveSession(session: AuthSession) {
 
 export function clearSession() {
   localStorage.removeItem(SESSION_KEY)
+  void authClient.signOut()
 }
 
 export function authHeaders(): Record<string, string> {
   const session = getSession()
   return session ? { Authorization: `${session.tokenType} ${session.accessToken}` } : {}
-}
-
-async function demoLogin({ email, password }: LoginPayload): Promise<AuthSession> {
-  await new Promise((resolve) => window.setTimeout(resolve, 650))
-  if (!email || password.length < 6) {
-    throw new Error('El correo o la contraseña no son correctos.')
-  }
-
-  const role: AuthSession['user']['role'] = email.includes('admin')
-    ? 'Administrador'
-    : email.includes('investigador') ? 'Investigador' : 'Analista'
-
-  const session: AuthSession = {
-    accessToken: `demo-token-${crypto.randomUUID()}`,
-    tokenType: 'Bearer',
-    expiresAt: Date.now() + 8 * 60 * 60 * 1000,
-    user: {
-      id: 'demo-user',
-      name: role === 'Administrador' ? 'María Gómez' : role === 'Investigador' ? 'Carlos Ruiz' : 'Laura Méndez',
-      email,
-      role,
-    },
-  }
-  saveSession(session)
-  return session
 }

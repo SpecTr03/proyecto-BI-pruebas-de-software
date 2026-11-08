@@ -12,9 +12,10 @@ Proyecto final de pruebas de software que tiene como objetivo crear un proceso E
 
 ## Frontend de autenticación (HU01)
 
-La pantalla de acceso está implementada en `frontend/` con React, TypeScript y
-Vite. Incluye guardas para `/dashboard`, sesión persistida con expiración y
-menús/dashboards según el rol: Administrador, Analista o Investigador.
+La pantalla de acceso está implementada en `frontend/` con React, TypeScript,
+Vite y Neon Managed Auth. Incluye guardas para `/dashboard`, sesión persistida
+con expiración y menús/dashboards según el rol: Administrador, Analista o
+Investigador.
 
 ```bash
 cd frontend
@@ -22,9 +23,31 @@ npm install
 npm run dev
 ```
 
-Mientras el endpoint de autenticación no esté disponible, la interfaz usa un
-modo demo local. Para conectarla a FastAPI, define `VITE_API_URL` (o usa el
-proxy de Vite en desarrollo) y expón `POST /api/auth/login` con este contrato:
+Para usar el servicio de autenticación desplegado, define
+`VITE_NEON_AUTH_URL` en `frontend/.env.local` con el valor de
+`NEON_AUTH_BASE_URL` generado por `neon deploy`. En Vite, el valor de Auth es
+público; no expongas `DATABASE_URL` al frontend. La interfaz usa
+`@neon/auth` para `signIn.email` y `signOut`.
+
+El backend expone `GET /api/health/neon`, que ejecuta `SELECT 1` contra
+`DATABASE_URL` usando el driver `psycopg`. La URL agrupada (`DATABASE_URL`) es
+la adecuada para las solicitudes web; reserva `DATABASE_URL_UNPOOLED` para
+migraciones y tareas administrativas.
+
+La migración [001_create_app_users.sql](./migrations/001_create_app_users.sql)
+crea `app.users`, que relaciona cada usuario autenticado por Neon Auth con uno
+de los roles de HU01 (`Administrador`, `Analista` o `Investigador`). Neon Auth
+mantiene el correo, el hash de contraseña y las sesiones en `neon_auth`; la
+aplicación no duplica esas credenciales. Para asignar un usuario después de
+registrarlo en Neon Auth:
+
+```sql
+INSERT INTO app.users (id, email, role)
+VALUES ('UUID_DEL_USUARIO_NEON', 'usuario@universidad.edu.co', 'Analista');
+```
+
+Si se necesita conservar un proveedor de autenticación propio, también se
+puede definir `VITE_API_URL` y exponer `POST /api/auth/login` con este contrato:
 
 ```json
 {
