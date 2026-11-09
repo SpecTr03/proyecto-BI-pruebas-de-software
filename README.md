@@ -10,6 +10,120 @@ Proyecto final de pruebas de software que tiene como objetivo crear un proceso E
 - Frontend: **JavaScript/TypeScript, React y Vite**.
 - Visualización: **Plotly, Chart.js o D3.js**.
 
+## Configuración del entorno
+
+### Backend
+
+1. Copiar la plantilla de variables de entorno:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+2. Completar `backend/.env` con los valores del entorno local:
+
+| Variable | Cómo obtenerla |
+| --- | --- |
+| `MONGO_URI` | `mongodb://localhost:27017/` si MongoDB es local; si es remoto, el líder del equipo comparte la URI. |
+| `MONGO_DATABASE` | `SaberProDB`. |
+| `NEON_AUTH_BASE_URL` | El líder del equipo la comparte por un canal privado. Debe terminar en `/auth`. |
+| `NEON_AUTH_JWKS_URL` | El líder del equipo la comparte por un canal privado. Normalmente es `NEON_AUTH_BASE_URL` + `/.well-known/jwks.json`. |
+| `DATABASE_URL` | El líder del equipo comparte la URL agrupada (pooled) de Neon PostgreSQL. |
+| `APP_JWT_SECRET` | Generarlo localmente con el comando indicado abajo. |
+| `FRONTEND_ORIGIN` | Origen del frontend, por ejemplo `http://localhost:5173,http://127.0.0.1:5173`. |
+
+3. Generar `APP_JWT_SECRET`:
+
+```bash
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
+Copia el resultado en `APP_JWT_SECRET`. Debe tener al menos 32 caracteres.
+
+4. Aplicar la migración de usuarios con `psql`:
+
+```bash
+psql "<URL_NO_AGRUPADA_DE_NEON>" -f migrations/001_create_app_users.sql
+```
+
+La migración crea el esquema `app`, el enum de roles y la tabla `app.users`.
+Usa preferiblemente la URL no agrupada (`DATABASE_URL_UNPOOLED`) para tareas
+administrativas.
+
+**Importante:** `backend/.env` está incluido en `.gitignore`. Nunca confirmes
+credenciales reales, cadenas de conexión ni secretos en el repositorio.
+
+### Flujo de autenticación
+
+El login se realiza contra el backend:
+
+```http
+POST /api/auth/login
+Content-Type: application/json
+
+{
+  "email": "usuario@universidad.edu.co",
+  "password": "contraseña-del-usuario"
+}
+```
+
+La respuesta exitosa contiene el JWT de aplicación:
+
+```json
+{
+  "access_token": "<jwt>",
+  "token_type": "Bearer",
+  "expires_at": "2026-11-08T23:59:59Z",
+  "user": {
+    "id": "<uuid>",
+    "name": "Nombre del usuario",
+    "email": "usuario@universidad.edu.co",
+    "role": "Analista",
+    "permissions": ["dashboard:read", "reports:read"]
+  }
+}
+```
+
+En las peticiones posteriores a endpoints protegidos se debe enviar:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+El token dura ocho horas. `GET /api/auth/me` permite verificar el usuario y su
+rol. `GET /api/auth/permissions` devuelve los permisos efectivos.
+
+### Frontend
+
+```bash
+cp frontend/.env.example frontend/.env.local
+cd frontend
+npm install
+npm run dev
+```
+
+El frontend queda disponible en `http://localhost:5173`. Si no se define
+`VITE_API_URL`, Vite redirige `/api` al backend mediante el proxy configurado en
+`frontend/vite.config.ts`. No expongas `DATABASE_URL` ni secretos en el
+frontend.
+
+### Smoke test autenticado
+
+```bash
+python scripts/smoke_test_api.py \
+  --base-url http://localhost:8000 \
+  --email usuario@universidad.edu.co \
+  --password "contraseña-del-usuario"
+```
+
+También se pueden usar las variables `SMOKE_TEST_EMAIL` y
+`SMOKE_TEST_PASSWORD`. Sin credenciales, el script solo ejecuta la prueba
+pública `GET /api/health`.
+
+**Usuarios de prueba:** los usuarios de los roles Administrador, Analista e
+Investigador los comparte el líder del equipo por un canal privado. No están
+incluidos en el repositorio.
+
 ## Frontend de autenticación (HU01)
 
 La pantalla de acceso está implementada en `frontend/` con React, TypeScript,
@@ -399,7 +513,7 @@ La API REST desarrollada con **FastAPI** permite consultar la base de datos Mong
 - **MongoDB** en ejecución local o remoto. Por defecto se utiliza `mongodb://localhost:27017/`.
 - **Python 3.10 o superior**.
 - Base de datos `SaberProDB` poblada con las colecciones del Esquema de Estrella: `Fact_Resultados`, `Dim_Tiempo`, `Dim_Estudiante`, `Dim_Institucion`, `Dim_Programa` y `Dim_Ubicacion_Examen`.
-- Las variables de entorno `MONGO_URI` y `MONGO_DATABASE` configuradas en el archivo `.env`.
+- Las variables de entorno descritas en [Configuración del entorno](#configuración-del-entorno), incluyendo las de MongoDB y Neon.
 
 ## Instalación y ejecución del Backend
 
@@ -410,12 +524,9 @@ cp .env.example .env
 uvicorn app.main:app --reload --env-file .env
 ```
 
-El archivo `.env` debe contener las variables de conexión:
-
-```dotenv
-MONGO_URI=mongodb://localhost:27017/
-MONGO_DATABASE=SaberProDB
-```
+Completa `backend/.env` antes de iniciar la API. La plantilla está documentada
+en [Configuración del entorno](#configuración-del-entorno) y no contiene
+credenciales reales.
 
 La API quedará disponible en `http://localhost:8000`. Se recomienda crear y activar un entorno virtual antes de instalar las dependencias.
 
