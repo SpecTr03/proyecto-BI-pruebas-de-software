@@ -28,8 +28,30 @@ class SaludBDResponse(BaseModel):
     tiempo_promedio_consulta_ms: float = Field(
         ...,
         ge=0,
-        examples=[12.345],
-        description="Tiempo de una agregación simple en milisegundos.",
+        examples=[238.47],
+        description=(
+            "Promedio en milisegundos de 5 mediciones de "
+            "``count_documents({})`` sobre ``Fact_Resultados``, "
+            "descartando la primera por cold start."
+        ),
+    )
+    tiempo_min_consulta_ms: float = Field(
+        ...,
+        ge=0,
+        examples=[120.15],
+        description="Tiempo mínimo en milisegundos de las 5 mediciones.",
+    )
+    tiempo_max_consulta_ms: float = Field(
+        ...,
+        ge=0,
+        examples=[450.82],
+        description="Tiempo máximo en milisegundos de las 5 mediciones.",
+    )
+    num_consultas_medidas: int = Field(
+        ...,
+        ge=1,
+        examples=[5],
+        description="Cantidad de mediciones usadas para calcular el promedio.",
     )
     espacio_total_mb: float = Field(
         ...,

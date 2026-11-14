@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pymongo.database import Database
@@ -31,6 +32,7 @@ COLECCIONES = (
 )
 
 BYTES_PER_MB = 1024 * 1024
+NUM_CONSULTAS_MEDIDAS = 5
 
 
 def _contar_documentos(database: Database) -> dict[str, int]:
@@ -41,15 +43,33 @@ def _contar_documentos(database: Database) -> dict[str, int]:
     }
 
 
-def _medir_agregacion(database: Database) -> float:
-    """Mide en milisegundos una agregación simple sobre ``Fact_Resultados``."""
+def _calentar_consulta(collection: Any) -> None:
+    """Ejecuta una consulta de calentamiento para evitar el cold start."""
+    collection.count_documents({})
+
+
+def _medir_consulta(collection: Any) -> float:
+    """Mide en milisegundos una consulta de referencia."""
     inicio = time.perf_counter()
-    list(
-        database["Fact_Resultados"].aggregate(
-            [{"$count": "total"}],
-        )
-    )
+    collection.count_documents({})
     return (time.perf_counter() - inicio) * 1000
+
+
+def _medir_consultas(collection: Any) -> dict[str, float | int]:
+    """Mide la consulta cinco veces y resume sus tiempos en milisegundos."""
+    mediciones = [
+        _medir_consulta(collection)
+        for _ in range(NUM_CONSULTAS_MEDIDAS)
+    ]
+    return {
+        "tiempo_promedio_consulta_ms": round(
+            sum(mediciones) / len(mediciones),
+            3,
+        ),
+        "tiempo_min_consulta_ms": round(min(mediciones), 3),
+        "tiempo_max_consulta_ms": round(max(mediciones), 3),
+        "num_consultas_medidas": len(mediciones),
+    }
 
 
 def _obtener_espacio_mb(database: Database) -> float:
@@ -75,8 +95,14 @@ def obtener_salud_bd() -> SaludBDResponse:
     """Devuelve métricas de salud y rendimiento de la base de datos.
 
     Consulta el estado de la conexión, cuenta los documentos de las seis
-    colecciones, mide el tiempo de una agregación simple y obtiene el espacio
-    total ocupado mediante ``dbStats``.
+    colecciones y obtiene el espacio total ocupado mediante ``dbStats``.
+
+    El tiempo de consulta se mide con ``count_documents({})`` sobre
+    ``Fact_Resultados``. Primero se ejecuta una consulta de calentamiento y
+    luego se realizan 5 mediciones con ``time.perf_counter()``; la consulta
+    de calentamiento se descarta por cold start y el promedio, mínimo y máximo
+    se calculan sobre las 5 mediciones restantes. Un promedio superior a
+    1000 ms se considera indicio de rendimiento degradado.
 
     Returns:
         ``SaludBDResponse`` con las métricas de la base de datos.
@@ -99,7 +125,9 @@ def obtener_salud_bd() -> SaludBDResponse:
     try:
         database = mongo_connection.get_database()
         colecciones = _contar_documentos(database)
-        tiempo_ms = _medir_agregacion(database)
+        fact_resultados = database["Fact_Resultados"]
+        _calentar_consulta(fact_resultados)
+        estadisticas = _medir_consultas(fact_resultados)
         espacio_mb = _obtener_espacio_mb(database)
     except (PyMongoError, ConnectionError) as exc:
         logger.exception("Error obteniendo métricas de salud de MongoDB")
@@ -114,10 +142,16 @@ def obtener_salud_bd() -> SaludBDResponse:
             },
         ) from exc
 
+    if estadisticas["tiempo_promedio_consulta_ms"] > 1000:
+        logger.warning(
+            "Rendimiento degradado en MongoDB: %.3f ms promedio por consulta",
+            estadisticas["tiempo_promedio_consulta_ms"],
+        )
+
     return SaludBDResponse(
         estado_conexion="conectado",
         colecciones=colecciones,
-        tiempo_promedio_consulta_ms=round(tiempo_ms, 3),
+        **estadisticas,
         espacio_total_mb=round(espacio_mb, 2),
         total_documentos=sum(colecciones.values()),
     )

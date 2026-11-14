@@ -378,6 +378,46 @@ def test_salud_bd(session: requests.Session, context: TestContext) -> None:
             f"{data.get('estado_conexion')!r}."
         )
 
+    tiempo_promedio = data.get("tiempo_promedio_consulta_ms")
+    if (
+        not isinstance(tiempo_promedio, (int, float))
+        or isinstance(tiempo_promedio, bool)
+        or not 0 < tiempo_promedio < 5000
+    ):
+        raise AssertionError(
+            "'tiempo_promedio_consulta_ms' debe ser mayor que 0 y menor "
+            f"que 5000; se recibió: {tiempo_promedio!r}."
+        )
+
+    if data.get("num_consultas_medidas") != 5:
+        raise AssertionError(
+            "'num_consultas_medidas' debe ser 5; se recibió: "
+            f"{data.get('num_consultas_medidas')!r}."
+        )
+
+    tiempo_min = data.get("tiempo_min_consulta_ms")
+    tiempo_max = data.get("tiempo_max_consulta_ms")
+    for nombre, valor in (
+        ("tiempo_min_consulta_ms", tiempo_min),
+        ("tiempo_max_consulta_ms", tiempo_max),
+    ):
+        if (
+            not isinstance(valor, (int, float))
+            or isinstance(valor, bool)
+            or valor < 0
+        ):
+            raise AssertionError(
+                f"'{nombre}' debe ser un número no negativo; "
+                f"se recibió: {valor!r}."
+            )
+
+    if not tiempo_min <= tiempo_promedio <= tiempo_max:
+        raise AssertionError(
+            "Se esperaba tiempo_min_consulta_ms <= "
+            "tiempo_promedio_consulta_ms <= tiempo_max_consulta_ms; "
+            f"se recibió: {tiempo_min!r}, {tiempo_promedio!r}, {tiempo_max!r}."
+        )
+
 
 def test_predecir(session: requests.Session, context: TestContext) -> None:
     """Valida POST /api/predecir con un estudiante de ejemplo."""
