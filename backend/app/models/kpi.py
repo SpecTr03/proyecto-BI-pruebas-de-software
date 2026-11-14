@@ -101,3 +101,37 @@ class KpiCompetenciasResponse(BaseModel):
         examples=[1209063],
         description="Cantidad de registros que coincidieron con los filtros.",
     )
+    indicadores: dict[str, str] = Field(
+        ...,
+        examples=[
+            {
+                "razonamiento": "Aceptable",
+                "lectura": "Aceptable",
+                "ciudadanas": "Aceptable",
+                "escrita": "Aceptable",
+                "ingles": "Aceptable",
+            }
+        ],
+        description=(
+            "Indicador cualitativo por competencia según la escala ICFES "
+            "aproximada: Deficiente (menor que 120), Aceptable (120-180) "
+            "o Sobresaliente (mayor que 180)."
+        ),
+    )
+    indicadores: dict[str, str] = Field(
+        ...,
+        examples=[
+            {
+                "razonamiento": "Aceptable",
+                "lectura": "Aceptable",
+                "ciudadanas": "Aceptable",
+                "escrita": "Aceptable",
+                "ingles": "Aceptable",
+            }
+        ],
+        description=(
+            "Indicador cualitativo por competencia según la escala ICFES "
+            "aproximada: Deficiente (menor que 120), Aceptable (120-180) "
+            "o Sobresaliente (mayor que 180)."
+        ),
+    )

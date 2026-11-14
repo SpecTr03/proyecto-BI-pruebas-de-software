@@ -53,6 +53,7 @@ RESET = "\033[0m"
 
 NIVELES_DESEMPENO = ["Bajo", "Medio", "Alto", "Muy Alto"]
 ROLES_VALIDOS = {"Administrador", "Analista", "Investigador"}
+INDICADORES_VALIDOS = {"Deficiente", "Aceptable", "Sobresaliente"}
 INVALID_PASSWORD = "smoke-test-password-invalida"
 
 PREDICTION_PAYLOAD = {
@@ -155,6 +156,78 @@ def _assert_positive_number(data: dict[str, Any], field: str) -> None:
         raise AssertionError(
             f"'{field}' debe ser un número mayor que 0; se recibió: {value!r}."
         )
+
+
+def _assert_indicadores(data: dict[str, Any]) -> None:
+    """Valida el mapa de indicadores cualitativos de competencias."""
+    indicadores = data.get("indicadores")
+    if not isinstance(indicadores, dict):
+        raise AssertionError(
+            "'indicadores' debe ser un objeto JSON; se recibió: "
+            f"{type(indicadores).__name__}."
+        )
+
+    competencias = {"razonamiento", "lectura", "ciudadanas", "escrita", "ingles"}
+    if set(indicadores) != competencias:
+        raise AssertionError(
+            "'indicadores' debe contener exactamente las claves "
+            f"{sorted(competencias)}; se recibió: {sorted(indicadores)}."
+        )
+
+    for competencia, indicador in indicadores.items():
+        if indicador not in INDICADORES_VALIDOS:
+            raise AssertionError(
+                f"El indicador de '{competencia}' debe estar en "
+                f"{sorted(INDICADORES_VALIDOS)}; se recibió: {indicador!r}."
+            )
+
+
+def _assert_indicadores(data: dict[str, Any]) -> None:
+    """Valida el mapa de indicadores cualitativos de competencias."""
+    indicadores = data.get("indicadores")
+    if not isinstance(indicadores, dict):
+        raise AssertionError(
+            "'indicadores' debe ser un objeto JSON; se recibió: "
+            f"{type(indicadores).__name__}."
+        )
+
+    competencias = {"razonamiento", "lectura", "ciudadanas", "escrita", "ingles"}
+    if set(indicadores) != competencias:
+        raise AssertionError(
+            "'indicadores' debe contener exactamente las claves "
+            f"{sorted(competencias)}; se recibió: {sorted(indicadores)}."
+        )
+
+    for competencia, indicador in indicadores.items():
+        if indicador not in INDICADORES_VALIDOS:
+            raise AssertionError(
+                f"El indicador de '{competencia}' debe estar en "
+                f"{sorted(INDICADORES_VALIDOS)}; se recibió: {indicador!r}."
+            )
+
+
+def _assert_indicadores(data: dict[str, Any]) -> None:
+    """Valida el mapa de indicadores cualitativos de competencias."""
+    indicadores = data.get("indicadores")
+    if not isinstance(indicadores, dict):
+        raise AssertionError(
+            "'indicadores' debe ser un objeto JSON; se recibió: "
+            f"{type(indicadores).__name__}."
+        )
+
+    competencias = {"razonamiento", "lectura", "ciudadanas", "escrita", "ingles"}
+    if set(indicadores) != competencias:
+        raise AssertionError(
+            "'indicadores' debe contener exactamente las claves "
+            f"{sorted(competencias)}; se recibió: {sorted(indicadores)}."
+        )
+
+    for competencia, indicador in indicadores.items():
+        if indicador not in INDICADORES_VALIDOS:
+            raise AssertionError(
+                f"El indicador de '{competencia}' debe estar en "
+                f"{sorted(INDICADORES_VALIDOS)}; se recibió: {indicador!r}."
+            )
 
 
 def test_health(session: requests.Session, context: TestContext) -> None:
@@ -267,6 +340,27 @@ def test_kpis_competencias(session: requests.Session, context: TestContext) -> N
         "ingles",
     ):
         _assert_positive_number(data, field)
+
+    indicadores = data.get("indicadores")
+    if not isinstance(indicadores, dict):
+        raise AssertionError(
+            "'indicadores' debe ser un objeto JSON; se recibió: "
+            f"{type(indicadores).__name__}."
+        )
+
+    competencias = {"razonamiento", "lectura", "ciudadanas", "escrita", "ingles"}
+    if set(indicadores) != competencias:
+        raise AssertionError(
+            "'indicadores' debe contener exactamente las claves "
+            f"{sorted(competencias)}; se recibió: {sorted(indicadores)}."
+        )
+
+    for competencia, indicador in indicadores.items():
+        if indicador not in INDICADORES_VALIDOS:
+            raise AssertionError(
+                f"El indicador de '{competencia}' debe estar en "
+                f"{sorted(INDICADORES_VALIDOS)}; se recibió: {indicador!r}."
+            )
 
 
 def test_salud_bd(session: requests.Session, context: TestContext) -> None:

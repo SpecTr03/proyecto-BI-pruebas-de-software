@@ -86,6 +86,23 @@ def _redondear(value: Any) -> float:
     return round(float(value), 2) if value is not None else 0.0
 
 
+def clasificar_desempeno(promedio: float) -> str:
+    """Clasifica un promedio de competencia según la escala ICFES aproximada.
+
+    Args:
+        promedio: Puntaje promedio de una competencia.
+
+    Returns:
+        ``"Deficiente"`` si el promedio es menor que 120, ``"Aceptable"``
+        si está entre 120 y 180 inclusive, o ``"Sobresaliente"`` si supera 180.
+    """
+    if promedio < 120:
+        return "Deficiente"
+    if promedio <= 180:
+        return "Aceptable"
+    return "Sobresaliente"
+
+
 def _obtener_periodo_anterior(
     database: Database,
     periodo_actual: str,
@@ -245,11 +262,16 @@ def calcular_kpi_competencias(
 ) -> dict[str, Any]:
     """Calcula los cinco promedios por competencia en una sola pasada.
 
+    Además de los promedios numéricos, devuelve un indicador cualitativo por
+    competencia usando la escala ICFES aproximada de ``clasificar_desempeno``.
+
     Args:
         filtros: Diccionario con los filtros opcionales del dashboard.
 
     Returns:
-        Diccionario compatible con ``KpiCompetenciasResponse``.
+        Diccionario compatible con ``KpiCompetenciasResponse``, incluyendo
+        ``indicadores`` para razonamiento, lectura, ciudadanas, escrita e
+        inglés.
 
     Raises:
         HTTPException: 503 si MongoDB no responde o falla la consulta.
@@ -261,23 +283,24 @@ def calcular_kpi_competencias(
     result = _ejecutar_agregacion(database, pipeline)
 
     if not result:
-        return {
-            "razonamiento": 0.0,
-            "lectura": 0.0,
-            "ciudadanas": 0.0,
-            "escrita": 0.0,
-            "ingles": 0.0,
-            "promedio_global": 0.0,
-            "total_registros": 0,
+        competencias = {nombre: 0.0 for nombre in METRICAS_COMPETENCIAS}
+    else:
+        document = result[0]
+        competencias = {
+            nombre: _redondear(document.get(nombre))
+            for nombre in METRICAS_COMPETENCIAS
         }
 
-    document = result[0]
+    indicadores = {
+        nombre: clasificar_desempeno(promedio)
+        for nombre, promedio in competencias.items()
+    }
+
     return {
-        "razonamiento": _redondear(document.get("razonamiento")),
-        "lectura": _redondear(document.get("lectura")),
-        "ciudadanas": _redondear(document.get("ciudadanas")),
-        "escrita": _redondear(document.get("escrita")),
-        "ingles": _redondear(document.get("ingles")),
-        "promedio_global": _redondear(document.get("promedio_global")),
-        "total_registros": int(document.get("total_registros", 0)),
+        **competencias,
+        "promedio_global": (
+            _redondear(result[0].get("promedio_global")) if result else 0.0
+        ),
+        "total_registros": int(result[0].get("total_registros", 0)) if result else 0,
+        "indicadores": indicadores,
     }

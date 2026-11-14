@@ -155,9 +155,12 @@ def get_kpi_global(
 def get_kpi_competencias(
     filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
 ) -> dict[str, Any]:
-    """Calcula en una sola consulta los promedios de las cinco competencias.
+    """Calcula los promedios y el indicador cualitativo de cada competencia.
 
-    Acepta los mismos filtros opcionales que ``/api/kpis`` y añade el promedio
-    global y el total de registros que coincidieron.
+    Acepta los mismos filtros opcionales que ``/api/kpis`` y devuelve el
+    promedio global, el total de registros y un mapa ``indicadores`` con la
+    clasificación ICFES aproximada de cada competencia: ``"Deficiente"``
+    (menor que 120), ``"Aceptable"`` (120-180) o ``"Sobresaliente"`` (mayor
+    que 180).
     """
     return calcular_kpi_competencias(filtros)
