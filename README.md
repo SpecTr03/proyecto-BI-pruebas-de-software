@@ -753,6 +753,10 @@ El backend implementa los siguientes patrones:
 
 - `app/database.py`: implementación de `MongoConnection` como Singleton.
 - `app/builders/query_builder.py`: implementación de `QueryBuilder` para construir consultas dinámicas.
+- `app/controllers/filtros_controller.py`: lógica de consulta y normalización de filtros.
+- `app/controllers/salud_bd_controller.py`: lógica de métricas y medición de salud de MongoDB.
+
+**MVC estricto aplicado en filtros.py y salud_bd.py;** `kpis.py` y `prediccion.py` ya delegaban correctamente; `auth.py` y `users.py` quedan fuera del alcance de esta HU (pertenecen a otras HUs).
 
 ### HU-05: Menú de navegación personalizado por rol
 

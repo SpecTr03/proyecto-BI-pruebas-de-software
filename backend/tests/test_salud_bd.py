@@ -2,7 +2,7 @@
 
 import pytest
 
-from backend.app.routes import salud_bd
+from backend.app.controllers import salud_bd_controller
 
 
 class FakeCollection:
@@ -34,9 +34,9 @@ def test_medir_consultas_ejecuta_cinco_consultas_y_promedia(
             0.510,
         ]
     )
-    monkeypatch.setattr(salud_bd.time, "perf_counter", lambda: next(tiempos))
+    monkeypatch.setattr(salud_bd_controller.time, "perf_counter", lambda: next(tiempos))
 
-    resultado = salud_bd._medir_consultas(collection)
+    resultado = salud_bd_controller._medir_consultas(collection)
 
     assert collection.calls == 5
     assert resultado["num_consultas_medidas"] == 5
