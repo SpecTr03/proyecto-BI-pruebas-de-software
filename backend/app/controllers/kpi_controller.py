@@ -28,6 +28,8 @@ METRICAS_COMPETENCIAS: dict[str, str] = {
     "ingles": "mod_ingles_punt",
 }
 
+ESTRATOS_VULNERABLES = frozenset({"Estrato 1", "Estrato 2"})
+
 
 def _construir_builder(filtros: Mapping[str, Any]) -> QueryBuilder:
     """Crea un ``QueryBuilder`` con todos los filtros opcionales del dashboard."""
@@ -48,6 +50,31 @@ def _construir_builder(filtros: Mapping[str, Any]) -> QueryBuilder:
         .filtrar_por_departamento_examen(filtros.get("departamento_examen"))
         .filtrar_por_municipio_examen(filtros.get("municipio_examen"))
     )
+
+
+def _construir_pipeline_cobertura(
+    builder: QueryBuilder,
+) -> list[dict[str, Any]]:
+    """Extiende el pipeline base del builder con el agrupamiento por estrato."""
+    builder._required_dimensions.add("estudiante")
+    pipeline = builder._base_pipeline()
+    pipeline.extend(
+        [
+            {
+                "$unwind": {
+                    "path": "$dim_estudiante",
+                    "preserveNullAndEmptyArrays": True,
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$dim_estudiante.estrato",
+                    "total": {"$sum": 1},
+                }
+            },
+        ]
+    )
+    return pipeline
 
 
 def _obtener_database() -> Database:
@@ -84,6 +111,14 @@ def _ejecutar_agregacion(
 def _redondear(value: Any) -> float:
     """Convierte un valor numérico a ``float`` con dos decimales."""
     return round(float(value), 2) if value is not None else 0.0
+
+
+def _normalizar_estrato(value: Any) -> str:
+    """Normaliza el estrato agrupado por MongoDB."""
+    if value is None:
+        return "Sin estrato"
+    texto = str(value).strip()
+    return texto or "Sin estrato"
 
 
 def clasificar_desempeno(promedio: float) -> str:
@@ -303,4 +338,55 @@ def calcular_kpi_competencias(
         ),
         "total_registros": int(result[0].get("total_registros", 0)) if result else 0,
         "indicadores": indicadores,
+    }
+
+
+def calcular_kpi_cobertura(
+    filtros: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Calcula el total de evaluados y la cobertura de estratos 1 y 2.
+
+    Args:
+        filtros: Diccionario con los filtros opcionales del dashboard.
+
+    Returns:
+        Diccionario compatible con ``KpiCoberturaResponse``.
+
+    Raises:
+        HTTPException: 503 si MongoDB no responde o falla la consulta.
+    """
+    builder = _construir_builder(filtros)
+    pipeline = _construir_pipeline_cobertura(builder)
+
+    database = _obtener_database()
+    result = _ejecutar_agregacion(database, pipeline)
+
+    distribucion: dict[str, int] = {}
+    for document in result:
+        estrato = _normalizar_estrato(document.get("_id"))
+        total = int(document.get("total", 0) or 0)
+        distribucion[estrato] = distribucion.get(estrato, 0) + total
+
+    total_registros = sum(distribucion.values())
+    if total_registros == 0:
+        return {
+            "total_registros": 0,
+            "porcentaje_estratos_1_2": 0.0,
+            "distribucion_estratos": {},
+        }
+
+    registros_vulnerables = sum(
+        total
+        for estrato, total in distribucion.items()
+        if estrato in ESTRATOS_VULNERABLES
+    )
+    porcentaje = round(
+        (registros_vulnerables / total_registros) * 100,
+        2,
+    )
+
+    return {
+        "total_registros": total_registros,
+        "porcentaje_estratos_1_2": porcentaje,
+        "distribucion_estratos": dict(sorted(distribucion.items())),
     }

@@ -8,10 +8,12 @@ from ..auth import require_permission
 from ..controllers.kpi_controller import (
     DEFAULT_METRIC,
     calcular_kpi,
+    calcular_kpi_cobertura,
     calcular_kpi_competencias,
     calcular_kpi_global,
 )
 from ..models.kpi import (
+    KpiCoberturaResponse,
     KpiCompetenciasResponse,
     KpiGlobalResponse,
     KpiResponse,
@@ -164,3 +166,20 @@ def get_kpi_competencias(
     que 180).
     """
     return calcular_kpi_competencias(filtros)
+
+
+@router.get(
+    "/cobertura",
+    response_model=KpiCoberturaResponse,
+    summary="KPI total de evaluados y cobertura socioeconómica",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def get_kpi_cobertura(
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+) -> dict[str, Any]:
+    """Calcula el total de evaluados y el porcentaje en estratos 1 y 2.
+
+    Acepta los mismos filtros opcionales que ``/api/kpis`` y devuelve además
+    la distribución de registros por cada estrato encontrado.
+    """
+    return calcular_kpi_cobertura(filtros)

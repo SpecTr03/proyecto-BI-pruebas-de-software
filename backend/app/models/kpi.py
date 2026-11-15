@@ -118,20 +118,28 @@ class KpiCompetenciasResponse(BaseModel):
             "o Sobresaliente (mayor que 180)."
         ),
     )
-    indicadores: dict[str, str] = Field(
+
+
+class KpiCoberturaResponse(BaseModel):
+    """Total de evaluados y cobertura socioeconómica de la cohorte."""
+
+    total_registros: int = Field(
         ...,
-        examples=[
-            {
-                "razonamiento": "Aceptable",
-                "lectura": "Aceptable",
-                "ciudadanas": "Aceptable",
-                "escrita": "Aceptable",
-                "ingles": "Aceptable",
-            }
-        ],
+        ge=0,
+        examples=[1209063],
+        description="Total de registros que cumplen los filtros.",
+    )
+    porcentaje_estratos_1_2: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        examples=[35.42],
         description=(
-            "Indicador cualitativo por competencia según la escala ICFES "
-            "aproximada: Deficiente (menor que 120), Aceptable (120-180) "
-            "o Sobresaliente (mayor que 180)."
+            "Porcentaje de estudiantes en estratos 1 y 2 sobre el total."
         ),
+    )
+    distribucion_estratos: dict[str, int] = Field(
+        default_factory=dict,
+        examples=[{"Estrato 1": 300000, "Estrato 2": 128400}],
+        description="Conteo de registros por cada estrato encontrado.",
     )
