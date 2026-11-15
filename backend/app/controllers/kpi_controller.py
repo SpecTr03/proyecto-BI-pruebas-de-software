@@ -10,13 +10,18 @@ from fastapi import HTTPException, status
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
 
-from ..builders.query_builder import QueryBuilder
+from ..builders.query_builder import (
+    DIMENSION_LOOKUPS,
+    DIMENSION_ORDER,
+    QueryBuilder,
+)
 from ..database import mongo_connection
 
 logger = logging.getLogger(__name__)
 
 FACT_COLLECTION = "Fact_Resultados"
 DIM_TIME_COLLECTION = "Dim_Tiempo"
+DIM_ESTUDIANTE_COLLECTION = "Dim_Estudiante"
 DEFAULT_METRIC = "mod_razona_cuantitat_punt"
 
 # Alias de respuesta -> campo numérico en Fact_Resultados.
@@ -52,12 +57,153 @@ def _construir_builder(filtros: Mapping[str, Any]) -> QueryBuilder:
     )
 
 
-def _construir_pipeline_cobertura(
-    builder: QueryBuilder,
+def _iter_condition_fields(condition: Mapping[str, Any]) -> list[str]:
+    """Devuelve los campos referenciados por una condición del builder."""
+    if "$or" in condition:
+        fields: list[str] = []
+        for branch in condition["$or"]:
+            fields.extend(_iter_condition_fields(branch))
+        return fields
+    return [field for field in condition if not field.startswith("$")]
+
+
+def _condition_dimension(condition: Mapping[str, Any]) -> str | None:
+    """Identifica la dimensión referenciada por una condición del builder."""
+    fields = _iter_condition_fields(condition)
+    if not fields:
+        return None
+
+    field = fields[0]
+    for dimension in DIMENSION_ORDER:
+        prefix = f"{DIMENSION_LOOKUPS[dimension]['as']}."
+        if field.startswith(prefix):
+            return dimension
+    return None
+
+
+def _proyeccion_estudiante(
+    conditions: list[dict[str, Any]],
+) -> dict[str, int]:
+    """Proyecta ``estrato`` y los campos usados por filtros de estudiante."""
+    projection = {"_id": 1, "estrato": 1}
+    prefix = f"{DIMENSION_LOOKUPS['estudiante']['as']}."
+
+    for condition in conditions:
+        for field in _iter_condition_fields(condition):
+            if field.startswith(prefix):
+                projection[field[len(prefix) :]] = 1
+
+    return projection
+
+
+def _lookup_estudiante(
+    conditions: list[dict[str, Any]],
+    local_field: str = "id_estudiante",
+) -> dict[str, Any]:
+    """Construye el ``$lookup`` de estudiante con proyección mínima."""
+    return {
+        "$lookup": {
+            **DIMENSION_LOOKUPS["estudiante"],
+            "localField": local_field,
+            "pipeline": [
+                {"$project": _proyeccion_estudiante(conditions)},
+            ],
+        }
+    }
+
+
+def _adaptar_condicion_dimension(
+    condition: Mapping[str, Any],
+    prefix: str,
+) -> dict[str, Any]:
+    """Quita el alias de una dimensión a una condición del builder."""
+    if "$or" in condition:
+        return {
+            "$or": [
+                _adaptar_condicion_dimension(branch, prefix)
+                for branch in condition["$or"]
+            ]
+        }
+
+    adaptada: dict[str, Any] = {}
+    for field, value in condition.items():
+        if field.startswith(prefix):
+            field = field[len(prefix) :]
+        adaptada[field] = value
+    return adaptada
+
+
+def _construir_pipeline_dim_estudiante(
+    conditions: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Extiende el pipeline base del builder con el agrupamiento por estrato."""
-    builder._required_dimensions.add("estudiante")
-    pipeline = builder._base_pipeline()
+    """Agrega directo sobre ``Dim_Estudiante`` sin consultar hechos."""
+    pipeline: list[dict[str, Any]] = []
+    if conditions:
+        prefix = f"{DIMENSION_LOOKUPS['estudiante']['as']}."
+        pipeline.append(
+            {
+                "$match": {
+                    "$and": [
+                        _adaptar_condicion_dimension(condition, prefix)
+                        for condition in conditions
+                    ]
+                }
+            }
+        )
+
+    pipeline.append(
+        {
+            "$group": {
+                "_id": "$estrato",
+                "total": {"$sum": 1},
+            }
+        }
+    )
+    return pipeline
+
+
+def _construir_pipeline_hechos(
+    builder: QueryBuilder,
+    fact_conditions: list[dict[str, Any]],
+    dimension_conditions: dict[str, list[dict[str, Any]]],
+) -> list[dict[str, Any]]:
+    """Filtra hechos, reduce IDs únicos y consulta estudiantes una sola vez."""
+    pipeline: list[dict[str, Any]] = []
+    if fact_conditions:
+        pipeline.append({"$match": {"$and": fact_conditions}})
+
+    for dimension in DIMENSION_ORDER:
+        if dimension == "estudiante":
+            continue
+        if dimension not in builder._required_dimensions:
+            continue
+
+        pipeline.append({"$lookup": DIMENSION_LOOKUPS[dimension]})
+        if dimension_conditions[dimension]:
+            pipeline.append(
+                {"$match": {"$and": dimension_conditions[dimension]}}
+            )
+
+    pipeline.append({"$project": {"id_estudiante": 1}})
+    pipeline.append(
+        {
+            "$group": {
+                "_id": "$id_estudiante",
+                "total": {"$sum": 1},
+            }
+        }
+    )
+    pipeline.append(
+        _lookup_estudiante(
+            dimension_conditions["estudiante"],
+            local_field="_id",
+        )
+    )
+    if dimension_conditions["estudiante"]:
+        pipeline.append(
+            {"$match": {"$and": dimension_conditions["estudiante"]}}
+        )
+
     pipeline.extend(
         [
             {
@@ -69,12 +215,51 @@ def _construir_pipeline_cobertura(
             {
                 "$group": {
                     "_id": "$dim_estudiante.estrato",
-                    "total": {"$sum": 1},
+                    "total": {"$sum": "$total"},
                 }
             },
         ]
     )
     return pipeline
+
+
+def _construir_pipeline_cobertura(
+    builder: QueryBuilder,
+) -> tuple[str, list[dict[str, Any]]]:
+    """Elige la colección y el pipeline híbrido para el KPI de cobertura."""
+    fact_conditions: list[dict[str, Any]] = []
+    dimension_conditions: dict[str, list[dict[str, Any]]] = {
+        dimension: [] for dimension in DIMENSION_ORDER
+    }
+
+    for condition in builder._conditions:
+        dimension = _condition_dimension(condition)
+        if dimension is None:
+            fact_conditions.append(condition)
+        else:
+            dimension_conditions[dimension].append(condition)
+
+    requiere_hechos = bool(fact_conditions) or any(
+        dimension != "estudiante"
+        and dimension in builder._required_dimensions
+        for dimension in DIMENSION_ORDER
+    )
+    if requiere_hechos:
+        return (
+            FACT_COLLECTION,
+            _construir_pipeline_hechos(
+                builder,
+                fact_conditions,
+                dimension_conditions,
+            ),
+        )
+
+    return (
+        DIM_ESTUDIANTE_COLLECTION,
+        _construir_pipeline_dim_estudiante(
+            dimension_conditions["estudiante"],
+        ),
+    )
 
 
 def _obtener_database() -> Database:
@@ -92,10 +277,11 @@ def _obtener_database() -> Database:
 def _ejecutar_agregacion(
     database: Database,
     pipeline: list[dict[str, Any]],
+    collection: str = FACT_COLLECTION,
 ) -> list[dict[str, Any]]:
-    """Ejecuta un pipeline sobre ``Fact_Resultados`` con manejo de errores."""
+    """Ejecuta un pipeline sobre la colección indicada con manejo de errores."""
     try:
-        cursor = database[FACT_COLLECTION].aggregate(
+        cursor = database[collection].aggregate(
             pipeline,
             allowDiskUse=True,
         )
@@ -117,8 +303,10 @@ def _normalizar_estrato(value: Any) -> str:
     """Normaliza el estrato agrupado por MongoDB."""
     if value is None:
         return "Sin estrato"
-    texto = str(value).strip()
-    return texto or "Sin estrato"
+    texto = " ".join(str(value).split())
+    if not texto or texto.casefold() == "sin estrato":
+        return "Sin estrato"
+    return texto
 
 
 def clasificar_desempeno(promedio: float) -> str:
@@ -346,6 +534,9 @@ def calcular_kpi_cobertura(
 ) -> dict[str, Any]:
     """Calcula el total de evaluados y la cobertura de estratos 1 y 2.
 
+    Usa ``Dim_Estudiante`` cuando no hay filtros de hechos y consulta
+    ``Fact_Resultados`` solo cuando es necesario aplicar esos filtros.
+
     Args:
         filtros: Diccionario con los filtros opcionales del dashboard.
 
@@ -356,10 +547,10 @@ def calcular_kpi_cobertura(
         HTTPException: 503 si MongoDB no responde o falla la consulta.
     """
     builder = _construir_builder(filtros)
-    pipeline = _construir_pipeline_cobertura(builder)
+    collection, pipeline = _construir_pipeline_cobertura(builder)
 
     database = _obtener_database()
-    result = _ejecutar_agregacion(database, pipeline)
+    result = _ejecutar_agregacion(database, pipeline, collection)
 
     distribucion: dict[str, int] = {}
     for document in result:

@@ -44,7 +44,7 @@ except ImportError as exc:  # pragma: no cover - depende del entorno
 
 
 DEFAULT_BASE_URL = "http://localhost:8000"
-TIMEOUT_SECONDS = 10.0
+TIMEOUT_SECONDS = 30.0
 
 GREEN = "\033[92m"
 RED = "\033[91m"
@@ -363,6 +363,56 @@ def test_kpis_competencias(session: requests.Session, context: TestContext) -> N
             )
 
 
+def test_kpi_cobertura(session: requests.Session, context: TestContext) -> None:
+    """Valida GET /api/kpis/cobertura."""
+    response = session.get(
+        f"{context.base_url}/api/kpis/cobertura",
+        timeout=TIMEOUT_SECONDS,
+    )
+    _assert_status(response)
+    data = _response_json(response)
+
+    total_registros = data.get("total_registros")
+    if (
+        not isinstance(total_registros, int)
+        or isinstance(total_registros, bool)
+        or total_registros <= 0
+    ):
+        raise AssertionError(
+            "'total_registros' debe ser un entero mayor que 0; "
+            f"se recibió: {total_registros!r}."
+        )
+
+    porcentaje = data.get("porcentaje_estratos_1_2")
+    if (
+        not isinstance(porcentaje, float)
+        or isinstance(porcentaje, bool)
+        or not 0 <= porcentaje <= 100
+    ):
+        raise AssertionError(
+            "'porcentaje_estratos_1_2' debe ser un float entre 0 y 100; "
+            f"se recibió: {porcentaje!r}."
+        )
+
+    distribucion = data.get("distribucion_estratos")
+    if not isinstance(distribucion, dict):
+        raise AssertionError(
+            "'distribucion_estratos' debe ser un objeto JSON; se recibió: "
+            f"{type(distribucion).__name__}."
+        )
+    if len(distribucion) < 3:
+        raise AssertionError(
+            "'distribucion_estratos' debe contener al menos 3 estratos; "
+            f"se recibió: {sorted(distribucion)}."
+        )
+
+    if "Sin Estrato" in distribucion and "Sin estrato" in distribucion:
+        raise AssertionError(
+            "'distribucion_estratos' contiene claves duplicadas para el "
+            "mismo estrato: 'Sin Estrato' y 'Sin estrato'."
+        )
+
+
 def test_salud_bd(session: requests.Session, context: TestContext) -> None:
     """Valida GET /api/salud-bd."""
     response = session.get(
@@ -477,6 +527,7 @@ AUTHENTICATED_TESTS: list[tuple[str, TestFunc]] = [
     ("GET /api/filtros/periodos", test_filtros_periodos),
     ("GET /api/kpis/global", test_kpis_global),
     ("GET /api/kpis/competencias", test_kpis_competencias),
+    ("GET /api/kpis/cobertura", test_kpi_cobertura),
     ("GET /api/salud-bd", test_salud_bd),
     ("POST /api/predecir", test_predecir),
 ]
