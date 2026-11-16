@@ -708,6 +708,35 @@ Devuelve en una sola consulta los promedios de razonamiento, lectura crítica, c
 }
 ```
 
+### HU-13: Distribución de Niveles de Desempeño en Inglés
+
+**Endpoint:** `GET /api/kpis/ingles`
+
+Devuelve el total de registros con nivel de inglés, la distribución por nivel (`-A1`, `A1`, `A2`, `B1`, `B2`), el porcentaje de cada nivel y el porcentaje agregado de estudiantes en `B1` o `B2` (el campo conserva el nombre `porcentaje_b1_bplus`). Acepta los mismos filtros opcionales que `/api/kpis`; solo agrega lookups cuando el filtro pertenece a una dimensión. Si el dataset incorpora niveles nuevos (por ejemplo, `C1`), se conservan en la distribución sin hacer fallar el endpoint.
+
+**Ejemplo de respuesta sin filtros:**
+
+```json
+{
+  "total_registros": 1208940,
+  "distribucion": {
+    "-A1": 118507,
+    "A1": 259438,
+    "A2": 457213,
+    "B1": 256778,
+    "B2": 117004
+  },
+  "porcentajes": {
+    "-A1": 9.8,
+    "A1": 21.46,
+    "A2": 37.82,
+    "B1": 21.24,
+    "B2": 9.68
+  },
+  "porcentaje_b1_bplus": 30.92
+}
+```
+
 ### HU-20: Entrenamiento y Selección de Modelos Predictivos
 
 **Script de entrenamiento:** `scripts/train_model.py`

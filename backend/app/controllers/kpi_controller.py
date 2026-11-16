@@ -34,6 +34,14 @@ METRICAS_COMPETENCIAS: dict[str, str] = {
 }
 
 ESTRATOS_VULNERABLES = frozenset({"Estrato 1", "Estrato 2"})
+NIVELES_INGLES = ("-A1", "A1", "A2", "B1", "B2")
+NORMALIZACION_NIVEL_INGLES = {
+    "-a1": "-A1",
+    "a1": "A1",
+    "a2": "A2",
+    "b1": "B1",
+    "b2": "B2",
+}
 
 
 def _construir_builder(filtros: Mapping[str, Any]) -> QueryBuilder:
@@ -309,6 +317,16 @@ def _normalizar_estrato(value: Any) -> str:
     return texto
 
 
+def _normalizar_nivel_ingles(value: Any) -> str | None:
+    """Normaliza el nivel de inglés agrupado por MongoDB."""
+    if value is None:
+        return None
+    texto = " ".join(str(value).split())
+    if not texto:
+        return None
+    return NORMALIZACION_NIVEL_INGLES.get(texto.casefold(), texto)
+
+
 def clasificar_desempeno(promedio: float) -> str:
     """Clasifica un promedio de competencia según la escala ICFES aproximada.
 
@@ -580,4 +598,80 @@ def calcular_kpi_cobertura(
         "total_registros": total_registros,
         "porcentaje_estratos_1_2": porcentaje,
         "distribucion_estratos": dict(sorted(distribucion.items())),
+    }
+
+
+def calcular_kpi_ingles(
+    filtros: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Calcula la distribución de niveles de desempeño en inglés.
+
+    Args:
+        filtros: Diccionario con los filtros opcionales del dashboard.
+
+    Returns:
+        Diccionario compatible con ``KpiInglesResponse``. Los niveles
+        desconocidos se conservan al final de la distribución para no fallar
+        si aparecen valores nuevos en el dataset.
+
+    Raises:
+        HTTPException: 503 si MongoDB no responde o falla la consulta.
+    """
+    builder = _construir_builder(filtros)
+    pipeline = builder._base_pipeline()
+    pipeline.extend(
+        [
+            {"$match": {"mod_ingles_desem": {"$ne": None}}},
+            {
+                "$group": {
+                    "_id": "$mod_ingles_desem",
+                    "total": {"$sum": 1},
+                }
+            },
+        ]
+    )
+
+    database = _obtener_database()
+    result = _ejecutar_agregacion(database, pipeline)
+
+    conteos: dict[str, int] = {}
+    for document in result:
+        nivel = _normalizar_nivel_ingles(document.get("_id"))
+        if nivel is None:
+            continue
+        total = int(document.get("total", 0) or 0)
+        conteos[nivel] = conteos.get(nivel, 0) + total
+
+    total_registros = sum(conteos.values())
+    if total_registros == 0:
+        return {
+            "total_registros": 0,
+            "distribucion": {},
+            "porcentajes": {},
+            "porcentaje_b1_bplus": 0.0,
+        }
+
+    distribucion = {
+        nivel: conteos[nivel]
+        for nivel in NIVELES_INGLES
+        if nivel in conteos
+    }
+    for nivel in sorted(set(conteos) - set(NIVELES_INGLES)):
+        distribucion[nivel] = conteos[nivel]
+
+    porcentajes = {
+        nivel: round((total / total_registros) * 100, 2)
+        for nivel, total in distribucion.items()
+    }
+    total_b1_b2 = distribucion.get("B1", 0) + distribucion.get("B2", 0)
+    porcentaje_b1_bplus = round(
+        (total_b1_b2 / total_registros) * 100,
+        2,
+    )
+
+    return {
+        "total_registros": total_registros,
+        "distribucion": distribucion,
+        "porcentajes": porcentajes,
+        "porcentaje_b1_bplus": porcentaje_b1_bplus,
     }

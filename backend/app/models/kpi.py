@@ -143,3 +143,54 @@ class KpiCoberturaResponse(BaseModel):
         examples=[{"Estrato 1": 300000, "Estrato 2": 128400}],
         description="Conteo de registros por cada estrato encontrado.",
     )
+
+
+class KpiInglesResponse(BaseModel):
+    """Distribución de niveles de desempeño en inglés.
+
+    Niveles conocidos: -A1, A1, A2, B1 y B2. Si el dataset incorpora niveles
+    nuevos, se conservan en la distribución para no fallar.
+    """
+
+    total_registros: int = Field(
+        ...,
+        ge=0,
+        examples=[1208940],
+        description="Total de registros con nivel de inglés.",
+    )
+    distribucion: dict[str, int] = Field(
+        default_factory=dict,
+        examples=[
+            {
+                "-A1": 118507,
+                "A1": 259438,
+                "A2": 457213,
+                "B1": 256778,
+                "B2": 117004,
+            }
+        ],
+        description=(
+            "Conteo por nivel: -A1, A1, A2, B1, B2. Los niveles nuevos se "
+            "conservan."
+        ),
+    )
+    porcentajes: dict[str, float] = Field(
+        default_factory=dict,
+        examples=[
+            {
+                "-A1": 9.8,
+                "A1": 21.46,
+                "A2": 37.82,
+                "B1": 21.24,
+                "B2": 9.68,
+            }
+        ],
+        description="Porcentaje por nivel.",
+    )
+    porcentaje_b1_bplus: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        examples=[30.92],
+        description="Porcentaje de estudiantes en B1 o B2 (B1 + B2).",
+    )

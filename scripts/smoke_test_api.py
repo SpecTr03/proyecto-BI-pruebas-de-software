@@ -52,6 +52,7 @@ YELLOW = "\033[93m"
 RESET = "\033[0m"
 
 NIVELES_DESEMPENO = ["Bajo", "Medio", "Alto", "Muy Alto"]
+NIVELES_INGLES = {"-A1", "A1", "A2", "B1", "B2"}
 ROLES_VALIDOS = {"Administrador", "Analista", "Investigador"}
 INDICADORES_VALIDOS = {"Deficiente", "Aceptable", "Sobresaliente"}
 INVALID_PASSWORD = "smoke-test-password-invalida"
@@ -413,6 +414,101 @@ def test_kpi_cobertura(session: requests.Session, context: TestContext) -> None:
         )
 
 
+def test_kpi_ingles(session: requests.Session, context: TestContext) -> None:
+    """Valida GET /api/kpis/ingles."""
+    response = session.get(
+        f"{context.base_url}/api/kpis/ingles",
+        timeout=TIMEOUT_SECONDS,
+    )
+    _assert_status(response)
+    data = _response_json(response)
+
+    total_registros = data.get("total_registros")
+    if (
+        not isinstance(total_registros, int)
+        or isinstance(total_registros, bool)
+        or total_registros <= 0
+    ):
+        raise AssertionError(
+            "'total_registros' debe ser un entero mayor que 0; "
+            f"se recibió: {total_registros!r}."
+        )
+
+    distribucion = data.get("distribucion")
+    if not isinstance(distribucion, dict) or not distribucion:
+        raise AssertionError(
+            "'distribucion' debe ser un objeto JSON no vacío; se recibió: "
+            f"{distribucion!r}."
+        )
+    if not set(distribucion).issubset(NIVELES_INGLES):
+        raise AssertionError(
+            "'distribucion' contiene niveles no válidos; se recibió: "
+            f"{sorted(distribucion)}."
+        )
+
+    for nivel, conteo in distribucion.items():
+        if (
+            not isinstance(conteo, int)
+            or isinstance(conteo, bool)
+            or conteo < 0
+        ):
+            raise AssertionError(
+                f"El conteo de '{nivel}' debe ser un entero no negativo; "
+                f"se recibió: {conteo!r}."
+            )
+
+    if sum(distribucion.values()) != total_registros:
+        raise AssertionError(
+            "La suma de 'distribucion' debe ser igual a 'total_registros'; "
+            f"se recibió {sum(distribucion.values())} y {total_registros}."
+        )
+
+    porcentajes = data.get("porcentajes")
+    if not isinstance(porcentajes, dict) or set(porcentajes) != set(distribucion):
+        raise AssertionError(
+            "'porcentajes' debe ser un objeto JSON con las mismas claves que "
+            f"'distribucion'; se recibió: {porcentajes!r}."
+        )
+
+    for nivel, porcentaje in porcentajes.items():
+        if (
+            not isinstance(porcentaje, (int, float))
+            or isinstance(porcentaje, bool)
+            or not 0 <= porcentaje <= 100
+        ):
+            raise AssertionError(
+                f"El porcentaje de '{nivel}' debe estar entre 0 y 100; "
+                f"se recibió: {porcentaje!r}."
+            )
+
+    porcentaje_b1_bplus = data.get("porcentaje_b1_bplus")
+    if (
+        not isinstance(porcentaje_b1_bplus, (int, float))
+        or isinstance(porcentaje_b1_bplus, bool)
+        or not 0 <= porcentaje_b1_bplus <= 100
+    ):
+        raise AssertionError(
+            "'porcentaje_b1_bplus' debe estar entre 0 y 100; "
+            f"se recibió: {porcentaje_b1_bplus!r}."
+        )
+
+    esperado_b1_bplus = round(
+        (
+            distribucion.get("B1", 0)
+            + distribucion.get("B2", 0)
+        )
+        / total_registros
+        * 100,
+        2,
+    )
+    if abs(porcentaje_b1_bplus - esperado_b1_bplus) > 0.05:
+        raise AssertionError(
+            "'porcentaje_b1_bplus' no coincide con la distribución; "
+            f"se esperaba {esperado_b1_bplus} y se recibió "
+            f"{porcentaje_b1_bplus}."
+        )
+
+
 def test_salud_bd(session: requests.Session, context: TestContext) -> None:
     """Valida GET /api/salud-bd."""
     response = session.get(
@@ -528,6 +624,7 @@ AUTHENTICATED_TESTS: list[tuple[str, TestFunc]] = [
     ("GET /api/kpis/global", test_kpis_global),
     ("GET /api/kpis/competencias", test_kpis_competencias),
     ("GET /api/kpis/cobertura", test_kpi_cobertura),
+    ("GET /api/kpis/ingles", test_kpi_ingles),
     ("GET /api/salud-bd", test_salud_bd),
     ("POST /api/predecir", test_predecir),
 ]

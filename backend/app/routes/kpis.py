@@ -11,11 +11,13 @@ from ..controllers.kpi_controller import (
     calcular_kpi_cobertura,
     calcular_kpi_competencias,
     calcular_kpi_global,
+    calcular_kpi_ingles,
 )
 from ..models.kpi import (
     KpiCoberturaResponse,
     KpiCompetenciasResponse,
     KpiGlobalResponse,
+    KpiInglesResponse,
     KpiResponse,
 )
 
@@ -183,3 +185,20 @@ def get_kpi_cobertura(
     la distribución de registros por cada estrato encontrado.
     """
     return calcular_kpi_cobertura(filtros)
+
+
+@router.get(
+    "/ingles",
+    response_model=KpiInglesResponse,
+    summary="KPI distribución de niveles de desempeño en inglés",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def get_kpi_ingles(
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+) -> dict[str, Any]:
+    """Calcula la distribución de niveles de inglés y el porcentaje B1/B2.
+
+    Acepta los mismos filtros opcionales que ``/api/kpis`` y devuelve el
+    conteo y porcentaje por cada nivel: -A1, A1, A2, B1 y B2.
+    """
+    return calcular_kpi_ingles(filtros)
