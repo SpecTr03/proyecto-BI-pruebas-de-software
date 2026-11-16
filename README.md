@@ -211,6 +211,24 @@ La implementación se encuentra en `frontend/src/services/dashboardPdf.ts`.
 con paginación automática y pie de página. Las librerías se cargan únicamente al
 solicitar la exportación para no aumentar la carga inicial de la aplicación.
 
+### KPI de promedio global (HU11)
+
+La vista **Indicadores KPI** de Analista consulta `/api/filtros/periodos` y
+`/api/kpis/global`. Permite seleccionar un periodo y muestra el promedio global
+de las cinco competencias, el total de registros y la variación porcentual
+respecto al periodo anterior. Las peticiones incluyen la sesión autenticada
+mediante `authHeaders()`.
+
+### Histórico del puntaje global (HU15)
+
+La vista **Indicadores KPI** incluye una serie anual del promedio global
+Saber Pro. Los diez selectores consultan los valores distintos disponibles y
+actualizan el gráfico al cambiar; el tooltip de cada punto muestra el promedio
+y la cantidad de registros. El endpoint protegido es
+`GET /api/graficas/historico` y admite `anio`, `departamento`, `municipio`,
+`institucion`, `caracter_institucion`, `programa`, `metodo_programa`, `genero`,
+`estrato` y `grupo_referencia`.
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.

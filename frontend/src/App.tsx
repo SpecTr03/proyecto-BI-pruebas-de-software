@@ -2,6 +2,16 @@ import { FormEvent, useEffect, useRef, useState } from 'react'
 import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiDatabase, FiDownload, FiEye, FiEyeOff, FiFileText, FiLoader, FiLock, FiLogOut, FiMail, FiMenu, FiPieChart, FiShield, FiSliders, FiTrendingUp, FiUsers, FiX } from 'react-icons/fi'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { authHeaders, clearSession, getSession, login } from './services/authApi'
+import { getGlobalKpi, listPeriods, type GlobalKpi } from './services/kpisApi'
+import {
+  getHistoricalTrend,
+  listTrendFilterOptions,
+  TREND_FILTERS,
+  type HistoricalPoint,
+  type TrendFilterKey,
+  type TrendFilterOptions,
+  type TrendFilters,
+} from './services/historicalApi'
 import {
   createManagedUser,
   listManagedUsers,
@@ -237,6 +247,295 @@ function UserManagement({ currentUserId }: { currentUserId: string }) {
   )
 }
 
+function GlobalKpiCard() {
+  const [periods, setPeriods] = useState<string[]>([])
+  const [period, setPeriod] = useState('')
+  const [kpi, setKpi] = useState<GlobalKpi | null>(null)
+  const [loadingPeriods, setLoadingPeriods] = useState(true)
+  const [loadingKpi, setLoadingKpi] = useState(false)
+  const [periodsFailed, setPeriodsFailed] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listPeriods(controller.signal)
+      .then((values) => {
+        const ordered = [...values].sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+        setPeriods(ordered)
+        setPeriod(ordered[0] ?? '')
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setPeriodsFailed(true)
+          setError(reason instanceof Error ? reason.message : 'No fue posible cargar los periodos.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingPeriods(false)
+      })
+
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (loadingPeriods || periodsFailed) return
+    const controller = new AbortController()
+    setLoadingKpi(true)
+    setError('')
+    getGlobalKpi(period || null, controller.signal)
+      .then(setKpi)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setError(reason instanceof Error ? reason.message : 'No fue posible consultar el KPI.')
+          setKpi(null)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingKpi(false)
+      })
+
+    return () => controller.abort()
+  }, [loadingPeriods, period, periodsFailed])
+
+  const comparison = kpi?.comparativo_porcentual
+  const comparisonClass = comparison === null || comparison === undefined
+    ? 'neutral'
+    : comparison >= 0 ? 'positive' : 'negative'
+
+  return (
+    <section className="global-kpi" aria-labelledby="global-kpi-title">
+      <div className="global-kpi-heading">
+        <div>
+          <p className="eyebrow">Indicador de desempeño</p>
+          <h2 id="global-kpi-title">Promedio global Saber Pro</h2>
+          <p>Promedio de las cinco competencias para el periodo seleccionado.</p>
+        </div>
+        <label className="period-filter" htmlFor="kpi-period">
+          Periodo académico
+          <select
+            id="kpi-period"
+            value={period}
+            onChange={(event) => setPeriod(event.target.value)}
+            disabled={loadingPeriods || periods.length === 0}
+          >
+            {periods.length === 0 && <option value="">Todos los periodos</option>}
+            {periods.map((value) => <option value={value} key={value}>{value}</option>)}
+          </select>
+        </label>
+      </div>
+
+      {error ? (
+        <p className="global-kpi-message is-error" role="alert">{error}</p>
+      ) : loadingPeriods || loadingKpi ? (
+        <p className="global-kpi-message" role="status">Cargando indicador...</p>
+      ) : kpi ? (
+        <div className="global-kpi-content" aria-live="polite">
+          <div className="global-kpi-value">
+            <span>{kpi.total_registros > 0 ? kpi.promedio_global.toFixed(2) : '—'}</span>
+            <small>puntos promedio</small>
+          </div>
+          <div className="global-kpi-details">
+            <div>
+              <small>Estudiantes evaluados</small>
+              <strong>{kpi.total_registros.toLocaleString('es-CO')}</strong>
+            </div>
+            <div>
+              <small>Variación frente al periodo anterior</small>
+              <strong className={`kpi-comparison ${comparisonClass}`}>
+                {comparison === null || comparison === undefined
+                  ? 'No disponible'
+                  : `${comparison > 0 ? '+' : ''}${comparison.toFixed(2)}%`}
+              </strong>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
+const EMPTY_TREND_FILTERS: TrendFilters = {
+  anio: '',
+  departamento: '',
+  municipio: '',
+  institucion: '',
+  caracter_institucion: '',
+  programa: '',
+  metodo_programa: '',
+  genero: '',
+  estrato: '',
+  grupo_referencia: '',
+}
+
+const EMPTY_TREND_OPTIONS: TrendFilterOptions = {
+  anio: [],
+  departamento: [],
+  municipio: [],
+  institucion: [],
+  caracter_institucion: [],
+  programa: [],
+  metodo_programa: [],
+  genero: [],
+  estrato: [],
+  grupo_referencia: [],
+}
+
+function HistoricalTrend() {
+  const [filters, setFilters] = useState<TrendFilters>(EMPTY_TREND_FILTERS)
+  const [options, setOptions] = useState<TrendFilterOptions>(EMPTY_TREND_OPTIONS)
+  const [points, setPoints] = useState<HistoricalPoint[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [loadingTrend, setLoadingTrend] = useState(false)
+  const [optionsError, setOptionsError] = useState('')
+  const [trendError, setTrendError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listTrendFilterOptions(controller.signal)
+      .then(setOptions)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setOptionsError(reason instanceof Error ? reason.message : 'No fue posible cargar los filtros.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingOptions(false)
+      })
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (loadingOptions || optionsError) return
+    const controller = new AbortController()
+    setLoadingTrend(true)
+    setTrendError('')
+    getHistoricalTrend(filters, controller.signal)
+      .then(setPoints)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setTrendError(reason instanceof Error ? reason.message : 'No fue posible consultar la serie histórica.')
+          setPoints([])
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingTrend(false)
+      })
+    return () => controller.abort()
+  }, [filters, loadingOptions, optionsError])
+
+  function updateFilter(key: TrendFilterKey, value: string) {
+    setFilters((current) => ({ ...current, [key]: value }))
+  }
+
+  const width = 760
+  const height = 300
+  const left = 54
+  const right = 18
+  const top = 24
+  const bottom = 42
+  const chartWidth = width - left - right
+  const chartHeight = height - top - bottom
+  const values = points.map((point) => point.promedio_global)
+  const minimum = values.length ? Math.min(...values) : 0
+  const maximum = values.length ? Math.max(...values) : 1
+  const valueRange = maximum - minimum || 1
+  const plottedPoints = points.map((point, index) => ({
+    ...point,
+    x: points.length === 1 ? left + chartWidth / 2 : left + index * chartWidth / (points.length - 1),
+    y: top + chartHeight - ((point.promedio_global - minimum) / valueRange) * chartHeight,
+  }))
+  const linePath = plottedPoints
+    .map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`)
+    .join(' ')
+
+  return (
+    <section className="historical-trend" aria-labelledby="historical-trend-title">
+      <header className="historical-trend-heading">
+        <div>
+          <p className="eyebrow">Evolución temporal</p>
+          <h2 id="historical-trend-title">Puntaje global medio por año</h2>
+          <p>Selecciona los filtros para segmentar la serie. Cada punto muestra el promedio global del año.</p>
+        </div>
+      </header>
+
+      <div className="trend-filters" aria-label="Filtros de la serie histórica">
+        {TREND_FILTERS.map(({ key, label }) => (
+          <label key={key} htmlFor={`trend-${key}`}>
+            {label}
+            <select
+              id={`trend-${key}`}
+              value={filters[key]}
+              onChange={(event) => updateFilter(key, event.target.value)}
+              disabled={loadingOptions || optionsError !== ''}
+            >
+              <option value="">Todos</option>
+              {options[key].map((value) => <option value={value} key={value}>{value}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+
+      {optionsError ? (
+        <p className="trend-message is-error" role="alert">{optionsError}</p>
+      ) : loadingOptions || loadingTrend ? (
+        <p className="trend-message" role="status">Cargando serie histórica...</p>
+      ) : trendError ? (
+        <p className="trend-message is-error" role="alert">{trendError}</p>
+      ) : points.length === 0 ? (
+        <p className="trend-message" role="status">No hay resultados para los filtros seleccionados.</p>
+      ) : (
+        <>
+          <div className="trend-chart-wrap">
+            <svg
+              className="trend-chart"
+              viewBox={`0 0 ${width} ${height}`}
+              role="img"
+              aria-labelledby="historical-trend-title historical-trend-description"
+            >
+              <desc id="historical-trend-description">
+                Gráfico de líneas del promedio global de Saber Pro por año. Pasa sobre cada punto para ver el puntaje y el total de registros.
+              </desc>
+              {[0, 0.5, 1].map((fraction) => {
+                const y = top + chartHeight * fraction
+                const value = maximum - valueRange * fraction
+                return (
+                  <g key={fraction}>
+                    <line x1={left} x2={width - right} y1={y} y2={y} className="trend-gridline" />
+                    <text x={left - 10} y={y + 4} textAnchor="end" className="trend-axis-label">{value.toFixed(1)}</text>
+                  </g>
+                )
+              })}
+              <path d={linePath} className="trend-line" />
+              {plottedPoints.map((point) => (
+                <g key={point.anio}>
+                  <circle cx={point.x} cy={point.y} r="6" className="trend-point">
+                    <title>{`${point.anio}: ${point.promedio_global.toFixed(2)} puntos; ${point.total_registros.toLocaleString('es-CO')} registros`}</title>
+                  </circle>
+                  <text x={point.x} y={height - 13} textAnchor="middle" className="trend-axis-label">{point.anio}</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+          <div className="trend-table-wrap">
+            <table className="trend-table">
+              <thead><tr><th>Año</th><th>Promedio global</th><th>Registros</th></tr></thead>
+              <tbody>
+                {points.map((point) => (
+                  <tr key={point.anio}>
+                    <td>{point.anio}</td>
+                    <td>{point.promedio_global.toFixed(2)}</td>
+                    <td>{point.total_registros.toLocaleString('es-CO')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -368,6 +667,11 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
           </div>
           {activeView === 'users' ? (
             <UserManagement currentUserId={session.user.id} />
+          ) : activeView === 'kpis' ? (
+            <>
+              <GlobalKpiCard />
+              <HistoricalTrend />
+            </>
           ) : (
             <>
               <div className="signal-card">

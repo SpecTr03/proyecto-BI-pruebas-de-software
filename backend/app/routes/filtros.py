@@ -31,6 +31,19 @@ def listar_periodos() -> FiltroResponse:
 
 
 @router.get(
+    "/anios",
+    response_model=FiltroResponse,
+    summary="Listar años académicos",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def listar_anios() -> FiltroResponse:
+    """Deriva los años disponibles a partir de los periodos académicos."""
+    periodos = obtener_valores_distintos("Dim_Tiempo", "periodo")
+    anios = sorted({periodo[:4] for periodo in periodos.valores if len(periodo) >= 4})
+    return FiltroResponse(valores=anios, total=len(anios))
+
+
+@router.get(
     "/departamentos",
     response_model=FiltroResponse,
     summary="Listar departamentos de residencia",

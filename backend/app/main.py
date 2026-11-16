@@ -20,6 +20,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .database import mongo_connection
 from .routes.filtros import router as filtros_router
+from .routes.graficas import router as graficas_router
 from .routes.health import router as health_router
 from .routes.auth import router as auth_router
 from .routes.kpis import router as kpis_router
@@ -85,6 +86,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(neon_router, prefix="/api")
 app.include_router(kpis_router, prefix="/api")
 app.include_router(filtros_router, prefix="/api")
+app.include_router(graficas_router, prefix="/api")
 app.include_router(prediccion_router, prefix="/api")
 app.include_router(salud_bd_router, prefix="/api")
 app.include_router(users_router, prefix="/api")

@@ -200,6 +200,27 @@ class QueryBuilder:
         """Filtra por periodo académico, por ejemplo ``20225``."""
         return self._add_filter("tiempo", "periodo", periodo)
 
+    def filtrar_por_anio(self, anio: Any) -> "QueryBuilder":
+        """Filtra por los cuatro primeros dígitos del periodo académico."""
+        values = self._clean_values(anio)
+        if not values:
+            return self
+        lookup = DIMENSION_LOOKUPS["tiempo"]
+        conditions = [
+            {
+                f"{lookup['as']}.periodo": {
+                    "$regex": f"^{re.escape(value)}",
+                    "$options": "i",
+                }
+            }
+            for value in values
+        ]
+        self._required_dimensions.add("tiempo")
+        self._conditions.append(
+            conditions[0] if len(conditions) == 1 else {"$or": conditions}
+        )
+        return self
+
     def filtrar_por_departamento(self, depto: Any) -> "QueryBuilder":
         """Filtra por departamento de residencia del estudiante."""
         return self._add_filter("estudiante", "depto_reside", depto)
@@ -405,6 +426,62 @@ class QueryBuilder:
             [
                 {"$group": group},
                 {"$project": projection},
+            ]
+        )
+        return pipeline
+
+    def build_global_trend(
+        self,
+        metrics: Mapping[str, str],
+    ) -> list[dict[str, Any]]:
+        """Calcula el promedio global de cada año, requiriendo la dimensión tiempo."""
+        if not metrics:
+            raise ValueError("Debe indicar al menos una métrica.")
+        invalid = [metric for metric in metrics.values() if metric not in NUMERIC_METRICS]
+        if invalid:
+            allowed = ", ".join(sorted(NUMERIC_METRICS))
+            raise ValueError(
+                "Métrica(s) no permitida(s): "
+                f"{', '.join(sorted(set(invalid)))}. "
+                f"Métricas válidas: {allowed}"
+            )
+
+        pipeline = self._base_pipeline()
+        if "tiempo" not in self._required_dimensions:
+            pipeline.insert(0, {"$lookup": DIMENSION_LOOKUPS["tiempo"]})
+
+        per_record_scores = [f"${metric}" for metric in metrics.values()]
+        pipeline.extend(
+            [
+                {
+                    "$set": {
+                        "_puntaje_global_registro": {
+                            "$avg": per_record_scores,
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": {
+                            "$substrBytes": [
+                                {"$toString": "$dim_tiempo.periodo"},
+                                0,
+                                4,
+                            ]
+                        },
+                        "promedio_global": {"$avg": "$_puntaje_global_registro"},
+                        "total_registros": {"$sum": 1},
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": 0,
+                        "anio": "$_id",
+                        "promedio_global": 1,
+                        "total_registros": 1,
+                    }
+                },
+                {"$sort": {"anio": 1}},
             ]
         )
         return pipeline
