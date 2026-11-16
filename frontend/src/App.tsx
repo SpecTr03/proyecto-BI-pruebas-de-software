@@ -5,12 +5,14 @@ import { authHeaders, clearSession, getSession, login } from './services/authApi
 import { getGlobalKpi, listPeriods, type GlobalKpi } from './services/kpisApi'
 import {
   getHistoricalTrend,
+  getStratumPerformance,
   listTrendFilterOptions,
   TREND_FILTERS,
   type HistoricalPoint,
   type TrendFilterKey,
   type TrendFilterOptions,
   type TrendFilters,
+  type StratumPerformance,
 } from './services/historicalApi'
 import {
   createManagedUser,
@@ -536,6 +538,107 @@ function HistoricalTrend() {
   )
 }
 
+function StratumPerformanceChart() {
+  const [data, setData] = useState<StratumPerformance[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getStratumPerformance(controller.signal)
+      .then(setData)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setError(reason instanceof Error ? reason.message : 'No fue posible consultar el desempeño por estrato.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [])
+
+  const width = 760
+  const height = 280
+  const left = 54
+  const right = 18
+  const top = 20
+  const bottom = 42
+  const chartHeight = height - top - bottom
+  const chartWidth = width - left - right
+  const slotWidth = data.length ? chartWidth / data.length : chartWidth
+  const barWidth = Math.min(56, slotWidth * 0.55)
+
+  return (
+    <section className="stratum-chart-card" aria-labelledby="stratum-chart-title">
+      <header>
+        <p className="eyebrow">Brecha socioeconómica</p>
+        <h2 id="stratum-chart-title">Promedio global por estrato</h2>
+        <p>Promedio de las cinco competencias y número de estudiantes en cada estrato.</p>
+      </header>
+      {error ? (
+        <p className="trend-message is-error" role="alert">{error}</p>
+      ) : loading ? (
+        <p className="trend-message" role="status">Cargando desempeño por estrato...</p>
+      ) : data.length === 0 ? (
+        <p className="trend-message" role="status">No hay registros con estrato socioeconómico válido.</p>
+      ) : (
+        <>
+          <div className="trend-chart-wrap">
+            <svg
+              className="stratum-chart"
+              viewBox={`0 0 ${width} ${height}`}
+              role="img"
+              aria-labelledby="stratum-chart-title stratum-chart-description"
+            >
+              <desc id="stratum-chart-description">
+                Gráfico de barras con el promedio global de Saber Pro para los estratos socioeconómicos del uno al seis.
+              </desc>
+              {[0, 100, 200, 300].map((score) => {
+                const y = top + chartHeight - (score / 300) * chartHeight
+                return (
+                  <g key={score}>
+                    <line x1={left} x2={width - right} y1={y} y2={y} className="trend-gridline" />
+                    <text x={left - 10} y={y + 4} textAnchor="end" className="trend-axis-label">{score}</text>
+                  </g>
+                )
+              })}
+              {data.map((point, index) => {
+                const barHeight = (point.promedio_global / 300) * chartHeight
+                const x = left + index * slotWidth + (slotWidth - barWidth) / 2
+                const y = top + chartHeight - barHeight
+                return (
+                  <g key={point.estrato}>
+                    <rect x={x} y={y} width={barWidth} height={barHeight} rx="3" className="stratum-bar">
+                      <title>{`${point.estrato}: ${point.promedio_global.toFixed(2)} puntos; ${point.total_registros.toLocaleString('es-CO')} estudiantes`}</title>
+                    </rect>
+                    <text x={x + barWidth / 2} y={height - 13} textAnchor="middle" className="trend-axis-label">{point.estrato.replace('Estrato ', '')}</text>
+                    <text x={x + barWidth / 2} y={y - 7} textAnchor="middle" className="stratum-value-label">{point.promedio_global.toFixed(1)}</text>
+                  </g>
+                )
+              })}
+            </svg>
+          </div>
+          <div className="trend-table-wrap">
+            <table className="trend-table">
+              <thead><tr><th>Estrato</th><th>Promedio global</th><th>Estudiantes</th></tr></thead>
+              <tbody>
+                {data.map((point) => (
+                  <tr key={point.estrato}>
+                    <td>{point.estrato}</td>
+                    <td>{point.promedio_global.toFixed(2)}</td>
+                    <td>{point.total_registros.toLocaleString('es-CO')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -671,6 +774,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
             <>
               <GlobalKpiCard />
               <HistoricalTrend />
+              <StratumPerformanceChart />
             </>
           ) : (
             <>

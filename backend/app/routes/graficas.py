@@ -5,8 +5,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from ..auth import require_permission
+from ..controllers.estrato_controller import calcular_desempeno_por_estrato
 from ..controllers.historico_controller import calcular_historico
-from ..models.grafica import HistoricoResponse
+from ..models.grafica import EstratosResponse, HistoricoResponse
 
 router = APIRouter(
     prefix="/graficas",
@@ -48,3 +49,13 @@ def get_historico(
         {key: value for key, value in filtros.items() if value is not None},
         anio=str(anio) if anio is not None else None,
     )
+
+
+@router.get(
+    "/desempeno-estratos",
+    response_model=EstratosResponse,
+    summary="Puntaje global medio por estrato socioeconómico",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def get_desempeno_estratos() -> EstratosResponse:
+    return calcular_desempeno_por_estrato()

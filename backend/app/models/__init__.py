@@ -1,7 +1,12 @@
 """Modelos Pydantic de entrada y salida."""
 
 from .filtro import FiltroResponse
-from .grafica import HistoricoResponse, PuntoHistorico
+from .grafica import (
+    DesempenoEstrato,
+    EstratosResponse,
+    HistoricoResponse,
+    PuntoHistorico,
+)
 from .health import HealthResponse
 from .kpi import (
     KpiCoberturaResponse,
@@ -14,6 +19,8 @@ from .salud import SaludBDResponse
 
 __all__ = [
     "FiltroResponse",
+    "DesempenoEstrato",
+    "EstratosResponse",
     "HealthResponse",
     "HistoricoResponse",
     "KpiCoberturaResponse",

@@ -186,6 +186,13 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .trend-table th { color: #81918d; font: 10px 'DM Mono', monospace; }
 .trend-message { padding: 20px 0 4px; color: #718783; font-size: 13px; }
 .trend-message.is-error { color: #a74d3a; }
+.stratum-chart-card { margin-top: 30px; border: 1px solid #dfe1d9; background: rgba(255,255,255,.72); padding: clamp(22px, 4vw, 36px); }
+.stratum-chart-card h2 { margin: 0 0 9px; color: #183c43; font-size: clamp(21px, 3vw, 28px); letter-spacing: -.045em; }
+.stratum-chart-card header > p:last-child { margin: 0; color: #788783; font-size: 12px; line-height: 1.6; }
+.stratum-chart { display: block; width: 100%; min-width: 520px; height: auto; }
+.stratum-bar { fill: #4e8178; transition: fill .15s ease; }
+.stratum-bar:hover { fill: #e2785b; }
+.stratum-value-label { fill: #183c43; font: 10px 'DM Mono', monospace; }
 
 @media (max-width: 1100px) {
   .user-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }

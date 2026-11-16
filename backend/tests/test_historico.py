@@ -1,4 +1,5 @@
 from backend.app.builders.query_builder import QueryBuilder
+from backend.app.controllers import estrato_controller
 from backend.app.controllers import historico_controller
 from backend.app.controllers.kpi_controller import METRICAS_COMPETENCIAS
 
@@ -79,3 +80,37 @@ def test_filter_year_endpoint_returns_distinct_years(monkeypatch) -> None:
         valores=["2018", "2019", "2022"],
         total=3,
     )
+
+
+def test_query_builder_groups_global_score_by_student_stratum() -> None:
+    pipeline = QueryBuilder().build_global_by_stratum(METRICAS_COMPETENCIAS)
+
+    assert pipeline[0]["$lookup"]["from"] == "Dim_Estudiante"
+    group = next(stage["$group"] for stage in pipeline if "$group" in stage)
+    assert group["_id"] == "$_estrato"
+    assert group["promedio_global"] == {"$avg": "$_puntaje_global_registro"}
+
+
+def test_calcular_desempeno_por_estrato_normaliza_y_ignora_fuera_de_rango(
+    monkeypatch,
+) -> None:
+    rows = [
+        {"estrato": "3", "promedio_global": 157.128, "total_registros": 30},
+        {"estrato": "Estrato 1", "promedio_global": 141.5, "total_registros": 10},
+        {"estrato": "1", "promedio_global": 142.5, "total_registros": 10},
+        {"estrato": "Estrato 7", "promedio_global": 180, "total_registros": 2},
+        {"estrato": "Sin estrato", "promedio_global": 120, "total_registros": 4},
+    ]
+    monkeypatch.setattr(estrato_controller, "_obtener_database", lambda: object())
+    monkeypatch.setattr(
+        estrato_controller,
+        "_ejecutar_agregacion",
+        lambda database, pipeline, collection: rows,
+    )
+
+    response = estrato_controller.calcular_desempeno_por_estrato()
+
+    assert [point.model_dump() for point in response.datos] == [
+        {"estrato": "Estrato 1", "promedio_global": 142.0, "total_registros": 20},
+        {"estrato": "Estrato 3", "promedio_global": 157.13, "total_registros": 30},
+    ]

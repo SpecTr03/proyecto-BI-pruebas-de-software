@@ -229,6 +229,12 @@ y la cantidad de registros. El endpoint protegido es
 `institucion`, `caracter_institucion`, `programa`, `metodo_programa`, `genero`,
 `estrato` y `grupo_referencia`.
 
+### Desempeño por estrato socioeconómico (HU17)
+
+La vista también muestra los promedios globales por estrato (1 a 6) en un
+gráfico de barras con el total de estudiantes por categoría. El endpoint
+protegido es `GET /api/graficas/desempeno-estratos`.
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.

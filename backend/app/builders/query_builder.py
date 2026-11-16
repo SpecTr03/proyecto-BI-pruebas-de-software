@@ -486,6 +486,58 @@ class QueryBuilder:
         )
         return pipeline
 
+    def build_global_by_stratum(
+        self,
+        metrics: Mapping[str, str],
+    ) -> list[dict[str, Any]]:
+        """Calcula el promedio global y el total de estudiantes por estrato."""
+        if not metrics:
+            raise ValueError("Debe indicar al menos una métrica.")
+        invalid = [metric for metric in metrics.values() if metric not in NUMERIC_METRICS]
+        if invalid:
+            allowed = ", ".join(sorted(NUMERIC_METRICS))
+            raise ValueError(
+                "Métrica(s) no permitida(s): "
+                f"{', '.join(sorted(set(invalid)))}. "
+                f"Métricas válidas: {allowed}"
+            )
+
+        pipeline = self._base_pipeline()
+        if "estudiante" not in self._required_dimensions:
+            pipeline.insert(0, {"$lookup": DIMENSION_LOOKUPS["estudiante"]})
+
+        pipeline.extend(
+            [
+                {
+                    "$set": {
+                        "_puntaje_global_registro": {
+                            "$avg": [f"${metric}" for metric in metrics.values()],
+                        },
+                        "_estrato": {
+                            "$ifNull": ["$dim_estudiante.estrato", ""],
+                        },
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$_estrato",
+                        "promedio_global": {"$avg": "$_puntaje_global_registro"},
+                        "total_registros": {"$sum": 1},
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": 0,
+                        "estrato": "$_id",
+                        "promedio_global": 1,
+                        "total_registros": 1,
+                    }
+                },
+                {"$sort": {"estrato": 1}},
+            ]
+        )
+        return pipeline
+
     def __repr__(self) -> str:
         """Representación útil para depuración."""
         return (

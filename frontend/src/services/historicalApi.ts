@@ -25,6 +25,12 @@ export interface HistoricalPoint {
   total_registros: number
 }
 
+export interface StratumPerformance {
+  estrato: string
+  promedio_global: number
+  total_registros: number
+}
+
 interface FilterResponse {
   valores: string[]
   total: number
@@ -33,6 +39,10 @@ interface FilterResponse {
 interface HistoricalResponse {
   puntos: HistoricalPoint[]
   filtros: Partial<TrendFilters>
+}
+
+interface StratumResponse {
+  datos: StratumPerformance[]
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -82,4 +92,9 @@ export async function getHistoricalTrend(
   const suffix = query.size > 0 ? `?${query.toString()}` : ''
   const response = await getJson<HistoricalResponse>(`/graficas/historico${suffix}`, signal)
   return response.puntos
+}
+
+export async function getStratumPerformance(signal?: AbortSignal): Promise<StratumPerformance[]> {
+  const response = await getJson<StratumResponse>('/graficas/desempeno-estratos', signal)
+  return response.datos
 }
