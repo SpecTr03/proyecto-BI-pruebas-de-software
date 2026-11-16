@@ -6,6 +6,7 @@ from fastapi import HTTPException, status
 
 from ..builders.query_builder import QueryBuilder
 from ..models.grafica import RankingInstitucionesResponse, InstitucionRanking
+from ..services.dashboard_summaries import get_dashboard_summary
 from .kpi_controller import (
     FACT_COLLECTION,
     METRICAS_COMPETENCIAS,
@@ -29,13 +30,16 @@ def calcular_ranking_instituciones(
             detail="El tipo debe ser OFICIAL o NO OFICIAL.",
         )
 
-    builder = QueryBuilder().filtrar_por_tipo_institucion(normalized_type)
-    rows = _ejecutar_agregacion(
-        _obtener_database(),
-        builder.build_institution_ranking(METRICAS_COMPETENCIAS),
-        FACT_COLLECTION,
-    )
-    result = rows[0] if rows else {}
+    database = _obtener_database()
+    result = get_dashboard_summary(database, f"ranking:{normalized_type}")
+    if result is None:
+        builder = QueryBuilder().filtrar_por_tipo_institucion(normalized_type)
+        rows = _ejecutar_agregacion(
+            database,
+            builder.build_institution_ranking(METRICAS_COMPETENCIAS),
+            FACT_COLLECTION,
+        )
+        result = rows[0] if rows else {}
 
     def ranking(items: list[dict]) -> list[InstitucionRanking]:
         return [

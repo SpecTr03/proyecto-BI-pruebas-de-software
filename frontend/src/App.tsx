@@ -951,6 +951,98 @@ function InstitutionRankingChart() {
   )
 }
 
+const KPI_VIEWS = [
+  { id: 'global', label: 'Promedio', detail: 'Vista general', icon: <FiActivity /> },
+  { id: 'historical', label: 'Evolución', detail: 'Tendencia anual', icon: <FiTrendingUp /> },
+  { id: 'strata', label: 'Estratos', detail: 'Brecha socioeconómica', icon: <FiPieChart /> },
+  { id: 'comparison', label: 'Comparativo', detail: 'IES frente a su grupo', icon: <FiUsers /> },
+  { id: 'ranking', label: 'Ranking', detail: 'Desempeño institucional', icon: <FiBarChart2 /> },
+] as const
+
+type KpiViewId = (typeof KPI_VIEWS)[number]['id']
+
+function KpiWorkspace({
+  activeView,
+  onSelectView,
+}: {
+  activeView: KpiViewId
+  onSelectView: (view: KpiViewId) => void
+}) {
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const activeIndex = KPI_VIEWS.findIndex((view) => view.id === activeView)
+
+  function handleTabKeyDown(event: React.KeyboardEvent<HTMLButtonElement>, index: number) {
+    let nextIndex = index
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % KPI_VIEWS.length
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + KPI_VIEWS.length) % KPI_VIEWS.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = KPI_VIEWS.length - 1
+    else return
+
+    event.preventDefault()
+    onSelectView(KPI_VIEWS[nextIndex].id)
+    tabRefs.current[nextIndex]?.focus()
+  }
+
+  return (
+    <section className="kpi-workspace" aria-labelledby="kpi-workspace-title">
+      <header className="kpi-workspace-heading">
+        <div>
+          <p className="eyebrow">Analítica modular</p>
+          <h2 id="kpi-workspace-title">Explora los indicadores</h2>
+          <p>Selecciona una vista; solo se consulta el indicador activo.</p>
+        </div>
+        <div className="kpi-workspace-count" aria-label={`Vista ${activeIndex + 1} de ${KPI_VIEWS.length}`}>
+          <strong>{String(activeIndex + 1).padStart(2, '0')}</strong>
+          <span>/ {String(KPI_VIEWS.length).padStart(2, '0')}</span>
+        </div>
+      </header>
+
+      <div className="kpi-tabs" role="tablist" aria-label="Indicadores del dashboard" aria-orientation="horizontal">
+        {KPI_VIEWS.map((view, index) => {
+          const isSelected = view.id === activeView
+          return (
+            <button
+              ref={(element) => { tabRefs.current[index] = element }}
+              className={`kpi-tab${isSelected ? ' is-selected' : ''}`}
+              id={`kpi-tab-${view.id}`}
+              type="button"
+              role="tab"
+              aria-selected={isSelected}
+              aria-controls="kpi-active-panel"
+              tabIndex={isSelected ? 0 : -1}
+              onClick={() => onSelectView(view.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
+              key={view.id}
+            >
+              <span className="kpi-tab-icon" aria-hidden="true">{view.icon}</span>
+              <span className="kpi-tab-copy">
+                <strong>{view.label}</strong>
+                <small>{view.detail}</small>
+              </span>
+              <span className="kpi-tab-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div
+        className="kpi-tabpanel"
+        id="kpi-active-panel"
+        role="tabpanel"
+        aria-labelledby={`kpi-tab-${activeView}`}
+        tabIndex={0}
+      >
+        {activeView === 'global' && <GlobalKpiCard />}
+        {activeView === 'historical' && <HistoricalTrend />}
+        {activeView === 'strata' && <StratumPerformanceChart />}
+        {activeView === 'comparison' && <CompetencyComparisonChart />}
+        {activeView === 'ranking' && <InstitutionRankingChart />}
+      </div>
+    </section>
+  )
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -967,6 +1059,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
     const viewFromHash = window.location.hash.slice(1)
     return menuItems.some((item) => item.id === viewFromHash) ? viewFromHash : menuItems[0].id
   })
+  const [activeKpiView, setActiveKpiView] = useState<KpiViewId>('global')
   const [menuOpen, setMenuOpen] = useState(false)
   const activeMenuItem = menuItems.find((item) => item.id === activeView) ?? menuItems[0]
 
@@ -1083,13 +1176,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
           {activeView === 'users' ? (
             <UserManagement currentUserId={session.user.id} />
           ) : activeView === 'kpis' ? (
-            <>
-              <GlobalKpiCard />
-              <HistoricalTrend />
-              <StratumPerformanceChart />
-              <CompetencyComparisonChart />
-              <InstitutionRankingChart />
-            </>
+            <KpiWorkspace activeView={activeKpiView} onSelectView={setActiveKpiView} />
           ) : (
             <>
               <div className="signal-card">

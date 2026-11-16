@@ -506,8 +506,25 @@ python3 scripts/populate_nosql.py \
   --csv data/Resultados_Saber_Pro_limpio.csv
 ```
 
-`scripts/populate_nosql.py` no repite la depuración; solo transforma cada fila
-limpia al esquema estrella y la carga en MongoDB.
+`scripts/populate_nosql.py` no repite la depuración; transforma cada fila limpia
+al esquema estrella y agrega campos normalizados e índices para filtrar la serie
+histórica sin hacer joins sobre toda la colección de hechos. Al terminar, también
+regenera los resúmenes persistentes que usan los gráficos históricos, de estratos
+y de ranking.
+
+Para una base ya poblada, ejecutar una vez el backfill de filtros. Este proceso
+agrega campos a los documentos existentes por lotes, no elimina colecciones y
+se puede volver a ejecutar si se interrumpe:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\backfill_dashboard_filter_fields.py
+```
+
+Para refrescar manualmente los resúmenes:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\refresh_dashboard_summaries.py
+```
 
 ```python 
 import pandas as pd 

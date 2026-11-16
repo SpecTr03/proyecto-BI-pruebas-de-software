@@ -14,6 +14,8 @@ import re
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from ..constants import DASHBOARD_FILTER_FIELDS, normalize_dashboard_filter_value
+
 # Relación entre cada dimensión y su colección/llave foránea en MongoDB.
 DIMENSION_LOOKUPS: dict[str, dict[str, Any]] = {
     "tiempo": {
@@ -95,6 +97,8 @@ class QueryBuilder:
     def __init__(self) -> None:
         """Inicializa un builder sin filtros."""
         self._conditions: list[dict[str, Any]] = []
+        self._fact_conditions: list[dict[str, Any]] = []
+        self._dashboard_filter_values: dict[str, list[str]] = {}
         self._required_dimensions: set[str] = set()
 
     # ------------------------------------------------------------------
@@ -181,6 +185,7 @@ class QueryBuilder:
         field: str,
         value: Any,
         normalizer: Callable[[str], str] | None = None,
+        dashboard_filter_key: str | None = None,
     ) -> "QueryBuilder":
         """Agrega un filtro y registra la dimensión que necesita ``$lookup``."""
         lookup = DIMENSION_LOOKUPS[dimension]
@@ -190,6 +195,21 @@ class QueryBuilder:
         if condition is not None:
             self._required_dimensions.add(dimension)
             self._conditions.append(condition)
+            if dashboard_filter_key is not None:
+                values = self._clean_values(value)
+                if normalizer is not None:
+                    values = [normalizer(item) for item in values]
+                self._dashboard_filter_values[dashboard_filter_key] = [
+                    normalized
+                    for item in values
+                    if (
+                        normalized := normalize_dashboard_filter_value(
+                            dashboard_filter_key,
+                            item,
+                        )
+                    )
+                    is not None
+                ]
         return self
 
     # ------------------------------------------------------------------
@@ -199,6 +219,12 @@ class QueryBuilder:
     def filtrar_por_periodo(self, periodo: Any) -> "QueryBuilder":
         """Filtra por periodo académico, por ejemplo ``20225``."""
         return self._add_filter("tiempo", "periodo", periodo)
+
+    def filtrar_por_tiempo_id(self, tiempo_id: Any) -> "QueryBuilder":
+        """Filtra directamente por FK para aprovechar el índice de tiempo en hechos."""
+        if tiempo_id is not None:
+            self._fact_conditions.append({"id_tiempo": tiempo_id})
+        return self
 
     def filtrar_por_anio(self, anio: Any) -> "QueryBuilder":
         """Filtra por los cuatro primeros dígitos del periodo académico."""
@@ -219,23 +245,51 @@ class QueryBuilder:
         self._conditions.append(
             conditions[0] if len(conditions) == 1 else {"$or": conditions}
         )
+        self._dashboard_filter_values["anio"] = [
+            normalized
+            for value in values
+            if (
+                normalized := normalize_dashboard_filter_value("anio", value)
+            )
+            is not None
+        ]
         return self
 
     def filtrar_por_departamento(self, depto: Any) -> "QueryBuilder":
         """Filtra por departamento de residencia del estudiante."""
-        return self._add_filter("estudiante", "depto_reside", depto)
+        return self._add_filter(
+            "estudiante",
+            "depto_reside",
+            depto,
+            dashboard_filter_key="departamento",
+        )
 
     def filtrar_por_municipio(self, municipio: Any) -> "QueryBuilder":
         """Filtra por municipio de residencia del estudiante."""
-        return self._add_filter("estudiante", "mcpio_reside", municipio)
+        return self._add_filter(
+            "estudiante",
+            "mcpio_reside",
+            municipio,
+            dashboard_filter_key="municipio",
+        )
 
     def filtrar_por_institucion(self, nombre: Any) -> "QueryBuilder":
         """Filtra por nombre de la institución de educación superior."""
-        return self._add_filter("institucion", "nombre_institucion", nombre)
+        return self._add_filter(
+            "institucion",
+            "nombre_institucion",
+            nombre,
+            dashboard_filter_key="institucion",
+        )
 
     def filtrar_por_caracter_institucion(self, caracter: Any) -> "QueryBuilder":
         """Filtra por carácter académico de la institución."""
-        return self._add_filter("institucion", "caracter_academico", caracter)
+        return self._add_filter(
+            "institucion",
+            "caracter_academico",
+            caracter,
+            dashboard_filter_key="caracter_institucion",
+        )
 
     def filtrar_por_tipo_institucion(self, tipo: str) -> "QueryBuilder":
         """Filtra IES oficiales o no oficiales según el prefijo de ``origen``."""
@@ -258,15 +312,30 @@ class QueryBuilder:
 
     def filtrar_por_programa(self, programa: Any) -> "QueryBuilder":
         """Filtra por nombre del programa académico."""
-        return self._add_filter("programa", "programa_academico", programa)
+        return self._add_filter(
+            "programa",
+            "programa_academico",
+            programa,
+            dashboard_filter_key="programa",
+        )
 
     def filtrar_por_metodo_programa(self, metodo: Any) -> "QueryBuilder":
         """Filtra por metodología del programa (presencial, virtual, etc.)."""
-        return self._add_filter("programa", "metodo_programa", metodo)
+        return self._add_filter(
+            "programa",
+            "metodo_programa",
+            metodo,
+            dashboard_filter_key="metodo_programa",
+        )
 
     def filtrar_por_genero(self, genero: Any) -> "QueryBuilder":
         """Filtra por género del estudiante (``F``/``M``)."""
-        return self._add_filter("estudiante", "genero", genero)
+        return self._add_filter(
+            "estudiante",
+            "genero",
+            genero,
+            dashboard_filter_key="genero",
+        )
 
     def filtrar_por_estrato(self, estrato: Any) -> "QueryBuilder":
         """Filtra por estrato socioeconómico.
@@ -274,12 +343,21 @@ class QueryBuilder:
         Acepta ``2`` o ``"Estrato 2"``; ambos se normalizan al valor guardado.
         """
         return self._add_filter(
-            "estudiante", "estrato", estrato, self._normalize_estrato
+            "estudiante",
+            "estrato",
+            estrato,
+            self._normalize_estrato,
+            dashboard_filter_key="estrato",
         )
 
     def filtrar_por_grupo_referencia(self, nucleo: Any) -> "QueryBuilder":
         """Filtra por núcleo de conocimiento/grupo de referencia."""
-        return self._add_filter("programa", "nucleo_pregrado", nucleo)
+        return self._add_filter(
+            "programa",
+            "nucleo_pregrado",
+            nucleo,
+            dashboard_filter_key="grupo_referencia",
+        )
 
     def filtrar_por_internet(self, tiene: Any) -> "QueryBuilder":
         """Filtra por tenencia de internet (``True``/``False`` o ``Si``/``No``)."""
@@ -308,16 +386,28 @@ class QueryBuilder:
     def reset(self) -> "QueryBuilder":
         """Limpia filtros y dimensiones acumuladas."""
         self._conditions.clear()
+        self._fact_conditions.clear()
+        self._dashboard_filter_values.clear()
         self._required_dimensions.clear()
         return self
 
     def _base_pipeline(self) -> list[dict[str, Any]]:
         """Devuelve los ``$lookup`` y el ``$match`` comunes a todos los KPIs."""
-        pipeline: list[dict[str, Any]] = [
+        pipeline: list[dict[str, Any]] = []
+        if self._fact_conditions:
+            pipeline.append(
+                {
+                    "$match": {
+                        "$and": self._fact_conditions,
+                    }
+                }
+            )
+
+        pipeline.extend(
             {"$lookup": DIMENSION_LOOKUPS[name]}
             for name in DIMENSION_ORDER
             if name in self._required_dimensions
-        ]
+        )
 
         if self._conditions:
             pipeline.append({"$match": {"$and": self._conditions}})
@@ -453,7 +543,7 @@ class QueryBuilder:
         self,
         metrics: Mapping[str, str],
     ) -> list[dict[str, Any]]:
-        """Calcula el promedio global de cada año, requiriendo la dimensión tiempo."""
+        """Calcula la tendencia usando campos filtrables desnormalizados e indexados."""
         if not metrics:
             raise ValueError("Debe indicar al menos una métrica.")
         invalid = [metric for metric in metrics.values() if metric not in NUMERIC_METRICS]
@@ -465,37 +555,30 @@ class QueryBuilder:
                 f"Métricas válidas: {allowed}"
             )
 
-        pipeline = self._base_pipeline()
-        if "tiempo" not in self._required_dimensions:
-            pipeline.insert(0, {"$lookup": DIMENSION_LOOKUPS["tiempo"]})
-
-        per_record_scores = [f"${metric}" for metric in metrics.values()]
+        filters = [
+            {
+                DASHBOARD_FILTER_FIELDS[key]: {"$in": values},
+            }
+            for key, values in self._dashboard_filter_values.items()
+        ]
+        pipeline = []
+        if filters:
+            pipeline.append({"$match": {"$and": filters}})
         pipeline.extend(
             [
                 {
                     "$set": {
                         "_puntaje_global_registro": {
-                            "$avg": per_record_scores,
+                            "$avg": [f"${metric}" for metric in metrics.values()],
                         }
                     }
                 },
                 {
                     "$group": {
-                        "_id": {
-                            "$substrBytes": [
-                                {
-                                    "$toString": {
-                                        "$arrayElemAt": [
-                                            "$dim_tiempo.periodo",
-                                            0,
-                                        ]
-                                    }
-                                },
-                                0,
-                                4,
-                            ]
+                        "_id": "$dashboard_filters.anio",
+                        "promedio_global": {
+                            "$avg": "$_puntaje_global_registro"
                         },
-                        "promedio_global": {"$avg": "$_puntaje_global_registro"},
                         "total_registros": {"$sum": 1},
                     }
                 },
@@ -584,34 +667,76 @@ class QueryBuilder:
         if "institucion" not in self._required_dimensions:
             self._required_dimensions.add("institucion")
 
-        pipeline = self._base_pipeline()
+        if self._required_dimensions != {"institucion"}:
+            raise ValueError("El ranking solo admite filtros de institución.")
+
+        pipeline = [
+            {
+                "$set": {
+                    "_puntaje_global_registro": {
+                        "$avg": [f"${metric}" for metric in metrics.values()],
+                    }
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$id_institucion",
+                    "_suma_puntajes": {
+                        "$sum": "$_puntaje_global_registro"
+                    },
+                    "_total_puntajes": {
+                        "$sum": {
+                            "$cond": [
+                                {"$isNumber": "$_puntaje_global_registro"},
+                                1,
+                                0,
+                            ]
+                        }
+                    },
+                    "_total_institucion_dim": {"$sum": 1},
+                }
+            },
+            {
+                "$lookup": {
+                    **DIMENSION_LOOKUPS["institucion"],
+                    "localField": "_id",
+                }
+            },
+        ]
+        if self._conditions:
+            pipeline.append({"$match": {"$and": self._conditions}})
+
         pipeline.extend(
             [
                 {
                     "$set": {
-                        "_puntaje_global_registro": {
-                            "$avg": [f"${metric}" for metric in metrics.values()],
-                        },
                         "_nombre_institucion": {
                             "$arrayElemAt": [
                                 "$dim_institucion.nombre_institucion",
                                 0,
-                            ]
-                        },
+                            ],
+                        }
                     }
                 },
                 {
                     "$group": {
                         "_id": "$_nombre_institucion",
-                        "promedio_global": {"$avg": "$_puntaje_global_registro"},
-                        "total_registros": {"$sum": 1},
+                        "_suma_puntajes": {
+                            "$sum": "$_suma_puntajes"
+                        },
+                        "_total_puntajes": {
+                            "$sum": "$_total_puntajes"
+                        },
+                        "total_registros": {"$sum": "$_total_institucion_dim"},
                     }
                 },
                 {
                     "$project": {
                         "_id": 0,
                         "institucion": "$_id",
-                        "promedio_global": 1,
+                        "promedio_global": {
+                            "$divide": ["$_suma_puntajes", "$_total_puntajes"]
+                        },
                         "total_registros": 1,
                     }
                 },

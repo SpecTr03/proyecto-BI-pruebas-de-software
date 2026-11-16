@@ -23,6 +23,7 @@ import argparse
 import hashlib
 import logging
 import os
+import sys
 import threading
 import time
 
@@ -43,6 +44,15 @@ from pymongo.errors import (
     PyMongoError,
 )
 from pymongo.results import BulkWriteResult
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from backend.app.constants import (
+    DASHBOARD_FILTER_FIELDS,
+    normalize_dashboard_filter_value,
+)
 
 # ---------------------------------------------------------------------------
 # Configuración
@@ -106,6 +116,19 @@ PROGRAM_FIELDS = {
 EXAM_LOCATION_FIELDS = {
     "depto_presentacion": "ESTU_DEPTO_PRESENTACION",
     "mcpio_presentacion": "ESTU_MCPIO_PRESENTACION",
+}
+
+DASHBOARD_FILTER_SOURCE_FIELDS = {
+    "anio": TIME_FIELDS["periodo"],
+    "departamento": STUDENT_FIELDS["depto_reside"],
+    "municipio": STUDENT_FIELDS["mcpio_reside"],
+    "institucion": INSTITUTION_FIELDS["nombre_institucion"],
+    "caracter_institucion": INSTITUTION_FIELDS["caracter_academico"],
+    "programa": PROGRAM_FIELDS["programa_academico"],
+    "metodo_programa": PROGRAM_FIELDS["metodo_programa"],
+    "genero": STUDENT_FIELDS["genero"],
+    "estrato": STUDENT_FIELDS["estrato"],
+    "grupo_referencia": PROGRAM_FIELDS["nucleo_pregrado"],
 }
 
 METRIC_FIELDS = {
@@ -402,6 +425,15 @@ class DocumentBuilder:
         dimension_ids: Mapping[str, ObjectId],
     ) -> dict[str, Any]:
         consecutivo = as_text(row.get("ESTU_CONSECUTIVO"))
+        filter_values: dict[str, str | None] = {}
+        for filter_key, column in DASHBOARD_FILTER_SOURCE_FIELDS.items():
+            value = as_text(row.get(column))
+            if filter_key == "anio" and value is not None:
+                value = value[:4]
+            filter_values[filter_key] = normalize_dashboard_filter_value(
+                filter_key,
+                value,
+            )
         return {
             "_id": self._stable_object_id("Fact_Resultados", consecutivo),
             "estu_consecutivo": consecutivo,
@@ -410,6 +442,7 @@ class DocumentBuilder:
             "id_institucion": dimension_ids["Dim_Institucion"],
             "id_programa": dimension_ids["Dim_Programa"],
             "id_ubicacion_examen": dimension_ids["Dim_Ubicacion_Examen"],
+            "dashboard_filters": filter_values,
             **{
                 name: as_int(row.get(column))
                 for name, column in METRIC_FIELDS.items()
@@ -463,7 +496,7 @@ def read_available_columns(csv_path: Path, encoding: str) -> list[str]:
 # ---------------------------------------------------------------------------
 
 def collection_names(fact_collection: str) -> tuple[str, ...]:
-    return (fact_collection, *DIM_COLLECTIONS)
+    return (fact_collection, *DIM_COLLECTIONS, "Dashboard_Summaries")
 
 
 def drop_collections(database: Database, fact_collection: str) -> None:
@@ -489,6 +522,26 @@ def create_indexes(database: Database, fact_collection: str) -> None:
                 collection.name,
                 exc,
             )
+
+
+def create_dashboard_filter_indexes(
+    database: Database,
+    fact_collection: str,
+) -> None:
+    """Crea índices de filtros luego de insertar los documentos de hechos."""
+    collection = database[fact_collection]
+    for filter_key, field in DASHBOARD_FILTER_FIELDS.items():
+        try:
+            collection.create_index(
+                [(field, ASCENDING)],
+                name=f"ix_fact_dashboard_filter_{filter_key}",
+            )
+        except OperationFailure:
+            logging.error(
+                "No se pudo crear el índice de filtro %s.",
+                filter_key,
+            )
+            raise
 
 
 def upsert_dimensions(
@@ -734,6 +787,15 @@ def main() -> int:
                 len(clean),
                 stats["facts_inserted"],
             )
+
+        create_dashboard_filter_indexes(database, args.collection)
+
+        from backend.app.services.dashboard_summaries import (
+            refresh_dashboard_summaries,
+        )
+
+        logging.info("Precalculando resúmenes para el dashboard.")
+        refresh_dashboard_summaries(database, args.collection)
 
         elapsed = time.perf_counter() - started
         print_summary(database, args.collection, stats, elapsed)

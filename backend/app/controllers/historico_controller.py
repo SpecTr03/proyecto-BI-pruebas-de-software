@@ -4,6 +4,7 @@ from typing import Any, Mapping
 
 from ..builders.query_builder import QueryBuilder
 from ..models.grafica import HistoricoResponse, PuntoHistorico
+from ..services.dashboard_summaries import get_dashboard_summary
 from .kpi_controller import (
     FACT_COLLECTION,
     METRICAS_COMPETENCIAS,
@@ -32,11 +33,18 @@ def calcular_historico(
         .filtrar_por_grupo_referencia(filtros.get("grupo_referencia"))
     )
     database = _obtener_database()
-    result = _ejecutar_agregacion(
-        database,
-        builder.build_global_trend(METRICAS_COMPETENCIAS),
-        FACT_COLLECTION,
+    has_filters = bool(anio) or any(
+        value not in (None, "") for value in filtros.values()
     )
+    result = None
+    if not has_filters:
+        result = get_dashboard_summary(database, "historical")
+    if result is None:
+        result = _ejecutar_agregacion(
+            database,
+            builder.build_global_trend(METRICAS_COMPETENCIAS),
+            FACT_COLLECTION,
+        )
 
     return HistoricoResponse(
         puntos=[

@@ -15,6 +15,7 @@ from ..builders.query_builder import (
     DIMENSION_ORDER,
     QueryBuilder,
 )
+from ..constants import METRICAS_COMPETENCIAS
 from ..database import mongo_connection
 
 logger = logging.getLogger(__name__)
@@ -23,15 +24,6 @@ FACT_COLLECTION = "Fact_Resultados"
 DIM_TIME_COLLECTION = "Dim_Tiempo"
 DIM_ESTUDIANTE_COLLECTION = "Dim_Estudiante"
 DEFAULT_METRIC = "mod_razona_cuantitat_punt"
-
-# Alias de respuesta -> campo numérico en Fact_Resultados.
-METRICAS_COMPETENCIAS: dict[str, str] = {
-    "razonamiento": "mod_razona_cuantitat_punt",
-    "lectura": "mod_lectura_critica_punt",
-    "ciudadanas": "mod_competen_ciudada_punt",
-    "escrita": "mod_comuni_escrita_punt",
-    "ingles": "mod_ingles_punt",
-}
 
 ESTRATOS_VULNERABLES = frozenset({"Estrato 1", "Estrato 2"})
 NIVELES_INGLES = ("-A1", "A1", "A2", "B1", "B2")
@@ -374,6 +366,34 @@ def _obtener_periodo_anterior(
     return periodos[indice - 1]
 
 
+def _calcular_kpi_por_periodo(
+    database: Database,
+    periodo: str,
+) -> list[dict[str, Any]]:
+    """Calcula el KPI filtrando hechos por la FK indexada de tiempo."""
+    try:
+        time_document = database[DIM_TIME_COLLECTION].find_one(
+            {"periodo": periodo},
+            {"_id": 1},
+        )
+    except (PyMongoError, ConnectionError) as exc:
+        logger.exception("Error consultando el periodo %s", periodo)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="No fue posible consultar los periodos en MongoDB.",
+        ) from exc
+
+    if not time_document:
+        return []
+
+    pipeline = (
+        QueryBuilder()
+        .filtrar_por_tiempo_id(time_document["_id"])
+        .build_kpi_multi(METRICAS_COMPETENCIAS)
+    )
+    return _ejecutar_agregacion(database, pipeline)
+
+
 def calcular_kpi(
     filtros: Mapping[str, Any],
     metrica: str = DEFAULT_METRIC,
@@ -447,11 +467,17 @@ def calcular_kpi_global(filtros: Mapping[str, Any]) -> dict[str, Any]:
     if not periodo_actual:
         periodo_actual = None
 
-    builder = _construir_builder(filtros)
-    pipeline = builder.build_kpi_multi(METRICAS_COMPETENCIAS)
-
     database = _obtener_database()
-    result = _ejecutar_agregacion(database, pipeline)
+    only_period_filter = all(
+        key == "periodo" or value in (None, "")
+        for key, value in filtros.items()
+    )
+    if periodo_actual and only_period_filter:
+        result = _calcular_kpi_por_periodo(database, periodo_actual)
+    else:
+        builder = _construir_builder(filtros)
+        pipeline = builder.build_kpi_multi(METRICAS_COMPETENCIAS)
+        result = _ejecutar_agregacion(database, pipeline)
 
     if not result:
         return {
@@ -471,10 +497,19 @@ def calcular_kpi_global(filtros: Mapping[str, Any]) -> dict[str, Any]:
         if periodo_anterior:
             filtros_anteriores = dict(filtros)
             filtros_anteriores["periodo"] = periodo_anterior
-            pipeline_anterior = _construir_builder(
-                filtros_anteriores
-            ).build_kpi_multi(METRICAS_COMPETENCIAS)
-            result_anterior = _ejecutar_agregacion(database, pipeline_anterior)
+            if only_period_filter:
+                result_anterior = _calcular_kpi_por_periodo(
+                    database,
+                    periodo_anterior,
+                )
+            else:
+                pipeline_anterior = _construir_builder(
+                    filtros_anteriores
+                ).build_kpi_multi(METRICAS_COMPETENCIAS)
+                result_anterior = _ejecutar_agregacion(
+                    database,
+                    pipeline_anterior,
+                )
 
             if result_anterior:
                 promedio_anterior = _redondear(

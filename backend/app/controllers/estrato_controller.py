@@ -5,6 +5,7 @@ from typing import Any
 
 from ..builders.query_builder import QueryBuilder
 from ..models.grafica import DesempenoEstrato, EstratosResponse
+from ..services.dashboard_summaries import get_dashboard_summary
 from .kpi_controller import (
     FACT_COLLECTION,
     METRICAS_COMPETENCIAS,
@@ -25,11 +26,14 @@ def _normalizar_estrato(value: Any) -> str | None:
 def calcular_desempeno_por_estrato() -> EstratosResponse:
     """Obtiene el promedio global de cada estrato entre 1 y 6."""
     pipeline = QueryBuilder().build_global_by_stratum(METRICAS_COMPETENCIAS)
-    result = _ejecutar_agregacion(
-        _obtener_database(),
-        pipeline,
-        FACT_COLLECTION,
-    )
+    database = _obtener_database()
+    result = get_dashboard_summary(database, "strata")
+    if result is None:
+        result = _ejecutar_agregacion(
+            database,
+            pipeline,
+            FACT_COLLECTION,
+        )
 
     totals: dict[str, tuple[float, int]] = {}
     for document in result:
