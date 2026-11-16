@@ -6,7 +6,9 @@ from .grafica import (
     DesempenoEstrato,
     EstratosResponse,
     HistoricoResponse,
+    InstitucionRanking,
     PuntoHistorico,
+    RankingInstitucionesResponse,
 )
 from .health import HealthResponse
 from .kpi import (
@@ -25,6 +27,7 @@ __all__ = [
     "EstratosResponse",
     "HealthResponse",
     "HistoricoResponse",
+    "InstitucionRanking",
     "KpiCoberturaResponse",
     "KpiCompetenciasResponse",
     "KpiGlobalResponse",
@@ -32,5 +35,6 @@ __all__ = [
     "PrediccionInput",
     "PrediccionResponse",
     "PuntoHistorico",
+    "RankingInstitucionesResponse",
     "SaludBDResponse",
 ]

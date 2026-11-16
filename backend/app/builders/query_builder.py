@@ -237,6 +237,25 @@ class QueryBuilder:
         """Filtra por carácter académico de la institución."""
         return self._add_filter("institucion", "caracter_academico", caracter)
 
+    def filtrar_por_tipo_institucion(self, tipo: str) -> "QueryBuilder":
+        """Filtra IES oficiales o no oficiales según el prefijo de ``origen``."""
+        normalized = tipo.strip().upper()
+        prefixes = {"OFICIAL": "^OFICIAL", "NO OFICIAL": "^NO\\s+OFICIAL"}
+        if normalized not in prefixes:
+            raise ValueError("El tipo debe ser 'OFICIAL' o 'NO OFICIAL'.")
+
+        lookup = DIMENSION_LOOKUPS["institucion"]
+        self._required_dimensions.add("institucion")
+        self._conditions.append(
+            {
+                f"{lookup['as']}.origen": {
+                    "$regex": prefixes[normalized],
+                    "$options": "i",
+                }
+            }
+        )
+        return self
+
     def filtrar_por_programa(self, programa: Any) -> "QueryBuilder":
         """Filtra por nombre del programa académico."""
         return self._add_filter("programa", "programa_academico", programa)
@@ -534,6 +553,74 @@ class QueryBuilder:
                     }
                 },
                 {"$sort": {"estrato": 1}},
+            ]
+        )
+        return pipeline
+
+    def build_institution_ranking(
+        self,
+        metrics: Mapping[str, str],
+        limit: int = 10,
+    ) -> list[dict[str, Any]]:
+        """Calcula los rankings Top y Bottom por puntaje global de institución."""
+        if not metrics:
+            raise ValueError("Debe indicar al menos una métrica.")
+        if limit < 1:
+            raise ValueError("El límite debe ser mayor que cero.")
+        invalid = [metric for metric in metrics.values() if metric not in NUMERIC_METRICS]
+        if invalid:
+            allowed = ", ".join(sorted(NUMERIC_METRICS))
+            raise ValueError(
+                f"Métrica(s) no permitida(s): {', '.join(sorted(set(invalid)))}. "
+                f"Métricas válidas: {allowed}"
+            )
+        if "institucion" not in self._required_dimensions:
+            self._required_dimensions.add("institucion")
+
+        pipeline = self._base_pipeline()
+        pipeline.extend(
+            [
+                {
+                    "$set": {
+                        "_puntaje_global_registro": {
+                            "$avg": [f"${metric}" for metric in metrics.values()],
+                        },
+                        "_nombre_institucion": {
+                            "$arrayElemAt": [
+                                "$dim_institucion.nombre_institucion",
+                                0,
+                            ]
+                        },
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$_nombre_institucion",
+                        "promedio_global": {"$avg": "$_puntaje_global_registro"},
+                        "total_registros": {"$sum": 1},
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": 0,
+                        "institucion": "$_id",
+                        "promedio_global": 1,
+                        "total_registros": 1,
+                    }
+                },
+                {
+                    "$facet": {
+                        "top": [
+                            {"$sort": {"promedio_global": -1, "institucion": 1}},
+                            {"$limit": limit},
+                        ],
+                        "bottom": [
+                            {"$sort": {"promedio_global": 1, "institucion": 1}},
+                            {"$limit": limit},
+                            {"$sort": {"promedio_global": -1, "institucion": 1}},
+                        ],
+                    }
+                },
             ]
         )
         return pipeline

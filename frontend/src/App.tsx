@@ -6,12 +6,15 @@ import { getGlobalKpi, listPeriods, type GlobalKpi } from './services/kpisApi'
 import {
   getHistoricalTrend,
   getCompetencyComparison,
+  getInstitutionRankings,
   listComparisonOptions,
   getStratumPerformance,
   listTrendFilterOptions,
   TREND_FILTERS,
   type HistoricalPoint,
   type CompetencyComparison,
+  type InstitutionRanking,
+  type InstitutionRankings,
   type TrendFilterKey,
   type TrendFilterOptions,
   type TrendFilters,
@@ -841,6 +844,113 @@ function CompetencyComparisonChart() {
   )
 }
 
+function InstitutionRankingChart() {
+  const [type, setType] = useState<InstitutionRankings['tipo']>('OFICIAL')
+  const [rankings, setRankings] = useState<InstitutionRankings | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError('')
+    getInstitutionRankings(type, controller.signal)
+      .then(setRankings)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setError(reason instanceof Error ? reason.message : 'No fue posible calcular el ranking.')
+          setRankings(null)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [type])
+
+  const chart = (title: string, entries: InstitutionRanking[]) => {
+    const chartWidth = 680
+    const labelWidth = 300
+    const rowHeight = 34
+    const chartHeight = Math.max(70, entries.length * rowHeight + 20)
+    return (
+      <div className="ranking-panel">
+        <h3>{title}</h3>
+        {entries.length === 0 ? <p className="trend-message">No hay instituciones para mostrar.</p> : (
+          <>
+            <div className="ranking-chart-wrap">
+              <svg
+                className="ranking-chart"
+                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                role="img"
+                aria-label={`${title} de instituciones ${type.toLowerCase()}`}
+              >
+                {entries.map((entry, index) => {
+                  const y = index * rowHeight + 20
+                  const scoreWidth = Math.max(0, (entry.promedio_global / 300) * (chartWidth - labelWidth - 24))
+                  return (
+                    <g key={`${entry.institucion}-${index}`}>
+                      <text x="0" y={y + 13} className="ranking-label">{`${index + 1}. ${entry.institucion}`}</text>
+                      <rect x={labelWidth} y={y} width={scoreWidth} height="20" rx="2" className="ranking-bar">
+                        <title>{`${entry.institucion}: ${entry.promedio_global.toFixed(2)} puntos; ${entry.total_registros.toLocaleString('es-CO')} registros`}</title>
+                      </rect>
+                      <text x={labelWidth + scoreWidth + 6} y={y + 14} className="ranking-value">{entry.promedio_global.toFixed(1)}</text>
+                    </g>
+                  )
+                })}
+              </svg>
+            </div>
+            <div className="trend-table-wrap">
+              <table className="trend-table">
+                <thead><tr><th>Posición</th><th>Institución</th><th>Promedio</th><th>Registros</th></tr></thead>
+                <tbody>{entries.map((entry, index) => (
+                  <tr key={`${entry.institucion}-${index}`}>
+                    <td>{index + 1}</td>
+                    <td>{entry.institucion}</td>
+                    <td>{entry.promedio_global.toFixed(2)}</td>
+                    <td>{entry.total_registros.toLocaleString('es-CO')}</td>
+                  </tr>
+                ))}</tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <section className="institution-ranking" aria-labelledby="institution-ranking-title">
+      <header>
+        <p className="eyebrow">Panorama institucional</p>
+        <h2 id="institution-ranking-title">Top y Bottom 10 por tipo de IES</h2>
+        <p>Ranking por promedio global de las cinco competencias, con puntajes ordenados de mayor a menor.</p>
+      </header>
+      <div className="ranking-type-toggle" role="group" aria-label="Tipo de institución">
+        {(['OFICIAL', 'NO OFICIAL'] as const).map((value) => (
+          <button
+            type="button"
+            className={type === value ? 'is-selected' : ''}
+            aria-pressed={type === value}
+            onClick={() => setType(value)}
+            key={value}
+          >
+            {value === 'OFICIAL' ? 'IES Oficiales' : 'IES No Oficiales'}
+          </button>
+        ))}
+      </div>
+      {loading ? <p className="trend-message" role="status">Calculando rankings institucionales...</p> : error ? (
+        <p className="trend-message is-error" role="alert">{error}</p>
+      ) : rankings ? (
+        <div className="ranking-columns">
+          {chart('Top 10', rankings.top)}
+          {chart('Bottom 10', rankings.bottom)}
+        </div>
+      ) : null}
+    </section>
+  )
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -978,6 +1088,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
               <HistoricalTrend />
               <StratumPerformanceChart />
               <CompetencyComparisonChart />
+              <InstitutionRankingChart />
             </>
           ) : (
             <>

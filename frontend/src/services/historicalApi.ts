@@ -40,6 +40,18 @@ export interface CompetencyComparison {
   total_nacional: number
 }
 
+export interface InstitutionRanking {
+  institucion: string
+  promedio_global: number
+  total_registros: number
+}
+
+export interface InstitutionRankings {
+  tipo: 'OFICIAL' | 'NO OFICIAL'
+  top: InstitutionRanking[]
+  bottom: InstitutionRanking[]
+}
+
 interface FilterResponse {
   valores: string[]
   total: number
@@ -131,4 +143,12 @@ export async function getCompetencyComparison(
     grupo_referencia: grupoReferencia,
   })
   return getJson<CompetencyComparison>(`/graficas/comparativo-competencias?${query}`, signal)
+}
+
+export async function getInstitutionRankings(
+  tipo: InstitutionRankings['tipo'],
+  signal?: AbortSignal,
+): Promise<InstitutionRankings> {
+  const query = new URLSearchParams({ tipo })
+  return getJson<InstitutionRankings>(`/graficas/ranking-instituciones?${query}`, signal)
 }

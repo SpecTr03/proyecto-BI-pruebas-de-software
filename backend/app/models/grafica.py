@@ -1,6 +1,6 @@
 """Modelos para las series temporales del dashboard."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -33,3 +33,15 @@ class ComparativoCompetenciasResponse(BaseModel):
     promedios_nacionales: dict[str, float] = Field(default_factory=dict)
     total_institucion: int = Field(default=0, ge=0)
     total_nacional: int = Field(default=0, ge=0)
+
+
+class InstitucionRanking(BaseModel):
+    institucion: str
+    promedio_global: float
+    total_registros: int = Field(..., ge=0)
+
+
+class RankingInstitucionesResponse(BaseModel):
+    tipo: Literal["OFICIAL", "NO OFICIAL"]
+    top: list[InstitucionRanking] = Field(default_factory=list)
+    bottom: list[InstitucionRanking] = Field(default_factory=list)

@@ -243,6 +243,15 @@ referencia elegido. Incluye leyenda, valores numéricos y tamaños de muestra. E
 endpoint protegido es
 `GET /api/graficas/comparativo-competencias?institucion=...&grupo_referencia=...`.
 
+### Ranking institucional Top/Bottom (HU19)
+
+La vista presenta rankings Top 10 y Bottom 10 por promedio global de las cinco
+competencias, ordenados de mayor a menor, y permite alternar entre IES oficiales
+y no oficiales. Los orígenes que comienzan por `OFICIAL` se agrupan como
+oficiales; los que comienzan por `NO OFICIAL` como no oficiales. El origen
+`REGIMEN ESPECIAL` queda fuera de ambas categorías. El endpoint protegido es
+`GET /api/graficas/ranking-instituciones?tipo=OFICIAL` (o `NO%20OFICIAL`).
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.

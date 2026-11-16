@@ -1,6 +1,6 @@
 """Endpoints de series y gráficas descriptivas."""
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, Query
 
@@ -8,10 +8,12 @@ from ..auth import require_permission
 from ..controllers.comparativo_controller import calcular_comparativo_competencias
 from ..controllers.estrato_controller import calcular_desempeno_por_estrato
 from ..controllers.historico_controller import calcular_historico
+from ..controllers.ranking_controller import calcular_ranking_instituciones
 from ..models.grafica import (
     ComparativoCompetenciasResponse,
     EstratosResponse,
     HistoricoResponse,
+    RankingInstitucionesResponse,
 )
 
 router = APIRouter(
@@ -80,3 +82,15 @@ def get_comparativo_competencias(
     grupo_referencia: str = Query(..., min_length=1),
 ) -> ComparativoCompetenciasResponse:
     return calcular_comparativo_competencias(institucion, grupo_referencia)
+
+
+@router.get(
+    "/ranking-instituciones",
+    response_model=RankingInstitucionesResponse,
+    summary="Rankings Top/Bottom de IES oficiales o no oficiales",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def get_ranking_instituciones(
+    tipo: Literal["OFICIAL", "NO OFICIAL"] = Query(...),
+) -> RankingInstitucionesResponse:
+    return calcular_ranking_instituciones(tipo)

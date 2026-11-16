@@ -2,6 +2,7 @@ from backend.app.builders.query_builder import QueryBuilder
 from backend.app.controllers import comparativo_controller
 from backend.app.controllers import estrato_controller
 from backend.app.controllers import historico_controller
+from backend.app.controllers import ranking_controller
 from backend.app.controllers.kpi_controller import METRICAS_COMPETENCIAS
 
 
@@ -154,3 +155,69 @@ def test_comparativo_calcula_ies_y_grupo_nacional_con_filtros_correctos(
     assert response.total_institucion == 25
     assert response.total_nacional == 1000
     assert response.promedios_institucion["ingles"] == 153
+
+
+def test_query_builder_creates_official_institution_top_and_bottom_pipeline() -> None:
+    pipeline = (
+        QueryBuilder()
+        .filtrar_por_tipo_institucion("OFICIAL")
+        .build_institution_ranking(METRICAS_COMPETENCIAS)
+    )
+
+    match = next(stage["$match"] for stage in pipeline if "$match" in stage)
+    assert match["$and"][0]["dim_institucion.origen"] == {
+        "$regex": "^OFICIAL",
+        "$options": "i",
+    }
+    group = next(stage["$group"] for stage in pipeline if "$group" in stage)
+    assert group["_id"] == "$_nombre_institucion"
+    facet = pipeline[-1]["$facet"]
+    assert facet["top"][0]["$sort"]["promedio_global"] == -1
+    assert facet["top"][1] == {"$limit": 10}
+    assert facet["bottom"][0]["$sort"]["promedio_global"] == 1
+    assert facet["bottom"][1] == {"$limit": 10}
+    assert facet["bottom"][2]["$sort"]["promedio_global"] == -1
+
+
+def test_query_builder_rejects_unknown_institution_type() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="OFICIAL"):
+        QueryBuilder().filtrar_por_tipo_institucion("MIXTA")
+
+
+def test_calcular_ranking_instituciones_formats_both_rankings(monkeypatch) -> None:
+    rows = [
+        {
+            "top": [
+                {
+                    "institucion": "Universidad A",
+                    "promedio_global": 180.126,
+                    "total_registros": 20,
+                }
+            ],
+            "bottom": [
+                {
+                    "institucion": "Universidad B",
+                    "promedio_global": 120,
+                    "total_registros": 8,
+                }
+            ],
+        }
+    ]
+    monkeypatch.setattr(ranking_controller, "_obtener_database", lambda: object())
+    monkeypatch.setattr(
+        ranking_controller,
+        "_ejecutar_agregacion",
+        lambda database, pipeline, collection: rows,
+    )
+
+    response = ranking_controller.calcular_ranking_instituciones("OFICIAL")
+
+    assert response.tipo == "OFICIAL"
+    assert response.top[0].model_dump() == {
+        "institucion": "Universidad A",
+        "promedio_global": 180.13,
+        "total_registros": 20,
+    }
+    assert response.bottom[0].institucion == "Universidad B"
