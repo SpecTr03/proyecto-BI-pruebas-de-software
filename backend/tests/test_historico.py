@@ -20,6 +20,9 @@ def test_query_builder_creates_yearly_global_trend_pipeline() -> None:
     assert pipeline[-1] == {"$sort": {"anio": 1}}
     group = next(stage["$group"] for stage in pipeline if "$group" in stage)
     assert group["_id"]["$substrBytes"][1:] == [0, 4]
+    assert group["_id"]["$substrBytes"][0]["$toString"] == {
+        "$arrayElemAt": ["$dim_tiempo.periodo", 0]
+    }
     assert "promedio_global" in group
 
 

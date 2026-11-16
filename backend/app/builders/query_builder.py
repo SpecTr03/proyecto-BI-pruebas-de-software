@@ -483,7 +483,14 @@ class QueryBuilder:
                     "$group": {
                         "_id": {
                             "$substrBytes": [
-                                {"$toString": "$dim_tiempo.periodo"},
+                                {
+                                    "$toString": {
+                                        "$arrayElemAt": [
+                                            "$dim_tiempo.periodo",
+                                            0,
+                                        ]
+                                    }
+                                },
                                 0,
                                 4,
                             ]
