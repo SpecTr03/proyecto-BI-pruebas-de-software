@@ -2,6 +2,7 @@
 
 from .filtro import FiltroResponse
 from .grafica import (
+    ComparativoCompetenciasResponse,
     DesempenoEstrato,
     EstratosResponse,
     HistoricoResponse,
@@ -19,6 +20,7 @@ from .salud import SaludBDResponse
 
 __all__ = [
     "FiltroResponse",
+    "ComparativoCompetenciasResponse",
     "DesempenoEstrato",
     "EstratosResponse",
     "HealthResponse",

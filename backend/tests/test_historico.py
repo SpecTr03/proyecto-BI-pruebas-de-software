@@ -1,4 +1,5 @@
 from backend.app.builders.query_builder import QueryBuilder
+from backend.app.controllers import comparativo_controller
 from backend.app.controllers import estrato_controller
 from backend.app.controllers import historico_controller
 from backend.app.controllers.kpi_controller import METRICAS_COMPETENCIAS
@@ -114,3 +115,42 @@ def test_calcular_desempeno_por_estrato_normaliza_y_ignora_fuera_de_rango(
         {"estrato": "Estrato 1", "promedio_global": 142.0, "total_registros": 20},
         {"estrato": "Estrato 3", "promedio_global": 157.13, "total_registros": 30},
     ]
+
+
+def test_comparativo_calcula_ies_y_grupo_nacional_con_filtros_correctos(
+    monkeypatch,
+) -> None:
+    calls = []
+
+    def fake_calcular(filtros):
+        calls.append(filtros)
+        total = 25 if "institucion" in filtros else 1000
+        return {
+            "razonamiento": 150.0,
+            "lectura": 151.0,
+            "ciudadanas": 149.0,
+            "escrita": 152.0,
+            "ingles": 153.0,
+            "total_registros": total,
+        }
+
+    monkeypatch.setattr(
+        comparativo_controller,
+        "calcular_kpi_competencias",
+        fake_calcular,
+    )
+
+    response = comparativo_controller.calcular_comparativo_competencias(
+        "  Universidad ABC  ",
+        "  INGENIERÍA  ",
+    )
+
+    assert calls == [
+        {"institucion": "Universidad ABC", "grupo_referencia": "INGENIERÍA"},
+        {"grupo_referencia": "INGENIERÍA"},
+    ]
+    assert response.institucion == "Universidad ABC"
+    assert response.grupo_referencia == "INGENIERÍA"
+    assert response.total_institucion == 25
+    assert response.total_nacional == 1000
+    assert response.promedios_institucion["ingles"] == 153

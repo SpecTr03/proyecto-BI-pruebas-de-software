@@ -235,6 +235,14 @@ La vista también muestra los promedios globales por estrato (1 a 6) en un
 gráfico de barras con el total de estudiantes por categoría. El endpoint
 protegido es `GET /api/graficas/desempeno-estratos`.
 
+### Comparativo por grupo de referencia (HU16)
+
+La vista presenta un gráfico radar con las cinco competencias, comparando los
+promedios de una institución seleccionada con el promedio nacional del grupo de
+referencia elegido. Incluye leyenda, valores numéricos y tamaños de muestra. El
+endpoint protegido es
+`GET /api/graficas/comparativo-competencias?institucion=...&grupo_referencia=...`.
+
 ## Configuración local
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.

@@ -5,10 +5,13 @@ import { authHeaders, clearSession, getSession, login } from './services/authApi
 import { getGlobalKpi, listPeriods, type GlobalKpi } from './services/kpisApi'
 import {
   getHistoricalTrend,
+  getCompetencyComparison,
+  listComparisonOptions,
   getStratumPerformance,
   listTrendFilterOptions,
   TREND_FILTERS,
   type HistoricalPoint,
+  type CompetencyComparison,
   type TrendFilterKey,
   type TrendFilterOptions,
   type TrendFilters,
@@ -639,6 +642,205 @@ function StratumPerformanceChart() {
   )
 }
 
+const COMPETENCIES = [
+  { key: 'razonamiento', label: 'Razonamiento' },
+  { key: 'lectura', label: 'Lectura crítica' },
+  { key: 'ciudadanas', label: 'Competencias ciudadanas' },
+  { key: 'escrita', label: 'Comunicación escrita' },
+  { key: 'ingles', label: 'Inglés' },
+] as const
+
+function CompetencyComparisonChart() {
+  const [institutions, setInstitutions] = useState<string[]>([])
+  const [groups, setGroups] = useState<string[]>([])
+  const [institution, setInstitution] = useState('')
+  const [referenceGroup, setReferenceGroup] = useState('')
+  const [comparison, setComparison] = useState<CompetencyComparison | null>(null)
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [loadingComparison, setLoadingComparison] = useState(false)
+  const [optionsError, setOptionsError] = useState('')
+  const [comparisonError, setComparisonError] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listComparisonOptions(controller.signal)
+      .then(({ instituciones, grupos }) => {
+        setInstitutions(instituciones)
+        setGroups(grupos)
+        setInstitution(instituciones[0] ?? '')
+        setReferenceGroup(grupos[0] ?? '')
+        if (instituciones.length === 0 || grupos.length === 0) {
+          setOptionsError('Se requiere al menos una institución y un grupo de referencia.')
+        }
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setOptionsError(reason instanceof Error ? reason.message : 'No fue posible cargar las opciones.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingOptions(false)
+      })
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (loadingOptions || optionsError || !institution || !referenceGroup) return
+    const controller = new AbortController()
+    setLoadingComparison(true)
+    setComparisonError('')
+    getCompetencyComparison(institution, referenceGroup, controller.signal)
+      .then(setComparison)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setComparisonError(reason instanceof Error ? reason.message : 'No fue posible calcular la comparación.')
+          setComparison(null)
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingComparison(false)
+      })
+    return () => controller.abort()
+  }, [institution, loadingOptions, optionsError, referenceGroup])
+
+  const chartWidth = 720
+  const chartHeight = 370
+  const centerX = 360
+  const centerY = 178
+  const radius = 122
+  const axes = COMPETENCIES.map((competency, index) => {
+    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / COMPETENCIES.length
+    const x = centerX + Math.cos(angle) * radius
+    const y = centerY + Math.sin(angle) * radius
+    const labelX = centerX + Math.cos(angle) * (radius + 34)
+    const labelY = centerY + Math.sin(angle) * (radius + 34)
+    return { ...competency, angle, x, y, labelX, labelY }
+  })
+  const getPolygonPoints = (values: Record<string, number>) =>
+    COMPETENCIES.map(({ key }, index) => {
+      const angle = axes[index].angle
+      const value = Math.max(0, Math.min(300, values[key] ?? 0))
+      const valueRadius = (value / 300) * radius
+      return `${centerX + Math.cos(angle) * valueRadius},${centerY + Math.sin(angle) * valueRadius}`
+    }).join(' ')
+
+  return (
+    <section className="competency-comparison" aria-labelledby="competency-comparison-title">
+      <header>
+        <p className="eyebrow">Referencia académica</p>
+        <h2 id="competency-comparison-title">Competencias frente al promedio nacional</h2>
+        <p>Compara una institución con el total nacional de su grupo de referencia.</p>
+      </header>
+      <div className="comparison-selectors">
+        <label htmlFor="comparison-institution">
+          Institución
+          <select
+            id="comparison-institution"
+            value={institution}
+            onChange={(event) => setInstitution(event.target.value)}
+            disabled={loadingOptions || institutions.length === 0}
+          >
+            {institutions.map((value) => <option value={value} key={value}>{value}</option>)}
+          </select>
+        </label>
+        <label htmlFor="comparison-reference-group">
+          Grupo de referencia
+          <select
+            id="comparison-reference-group"
+            value={referenceGroup}
+            onChange={(event) => setReferenceGroup(event.target.value)}
+            disabled={loadingOptions || groups.length === 0}
+          >
+            {groups.map((value) => <option value={value} key={value}>{value}</option>)}
+          </select>
+        </label>
+      </div>
+      {optionsError ? (
+        <p className="trend-message is-error" role="alert">{optionsError}</p>
+      ) : loadingOptions || loadingComparison ? (
+        <p className="trend-message" role="status">Calculando promedios por competencia...</p>
+      ) : comparisonError ? (
+        <p className="trend-message is-error" role="alert">{comparisonError}</p>
+      ) : comparison ? (
+        <>
+          <div className="comparison-legend" aria-label="Leyenda del gráfico">
+            <span><i className="legend-institution" />{comparison.institucion}</span>
+            <span><i className="legend-national" />Promedio nacional: {comparison.grupo_referencia}</span>
+          </div>
+          <div className="comparison-chart-wrap">
+            <svg
+              className="comparison-chart"
+              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+              role="img"
+              aria-labelledby="competency-comparison-title competency-comparison-description"
+            >
+              <desc id="competency-comparison-description">
+                Gráfico radar con cinco competencias. Compara los promedios de la institución seleccionada con el promedio nacional del grupo de referencia.
+              </desc>
+              {[0.25, 0.5, 0.75, 1].map((fraction) => {
+                const points = axes.map(({ angle }) =>
+                  `${centerX + Math.cos(angle) * radius * fraction},${centerY + Math.sin(angle) * radius * fraction}`,
+                ).join(' ')
+                return <polygon key={fraction} points={points} className="comparison-grid" />
+              })}
+              {axes.map((axis) => (
+                <g key={axis.key}>
+                  <line x1={centerX} y1={centerY} x2={axis.x} y2={axis.y} className="comparison-axis" />
+                  <text x={axis.labelX} y={axis.labelY} textAnchor="middle" className="comparison-label">{axis.label}</text>
+                </g>
+              ))}
+              <polygon points={getPolygonPoints(comparison.promedios_nacionales)} className="comparison-polygon national" />
+              <polygon points={getPolygonPoints(comparison.promedios_institucion)} className="comparison-polygon institution" />
+              {axes.map((axis) => {
+                const institutionScore = comparison.promedios_institucion[axis.key] ?? 0
+                const nationalScore = comparison.promedios_nacionales[axis.key] ?? 0
+                const scoreRadius = (score: number) => (Math.max(0, Math.min(300, score)) / 300) * radius
+                return (
+                  <g key={`${axis.key}-points`}>
+                    <circle
+                      cx={centerX + Math.cos(axis.angle) * scoreRadius(nationalScore)}
+                      cy={centerY + Math.sin(axis.angle) * scoreRadius(nationalScore)}
+                      r="4"
+                      className="comparison-point national"
+                    >
+                      <title>{`Nacional ${axis.label}: ${nationalScore.toFixed(2)}`}</title>
+                    </circle>
+                    <circle
+                      cx={centerX + Math.cos(axis.angle) * scoreRadius(institutionScore)}
+                      cy={centerY + Math.sin(axis.angle) * scoreRadius(institutionScore)}
+                      r="4"
+                      className="comparison-point institution"
+                    >
+                      <title>{`${comparison.institucion} ${axis.label}: ${institutionScore.toFixed(2)}`}</title>
+                    </circle>
+                  </g>
+                )
+              })}
+            </svg>
+          </div>
+          <div className="trend-table-wrap">
+            <table className="trend-table">
+              <thead><tr><th>Competencia</th><th>{comparison.institucion}</th><th>Promedio nacional</th></tr></thead>
+              <tbody>
+                {COMPETENCIES.map(({ key, label }) => (
+                  <tr key={key}>
+                    <td>{label}</td>
+                    <td>{comparison.promedios_institucion[key].toFixed(2)}</td>
+                    <td>{comparison.promedios_nacionales[key].toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="comparison-records">
+            Registros: {comparison.total_institucion.toLocaleString('es-CO')} en la institución · {comparison.total_nacional.toLocaleString('es-CO')} en el grupo nacional.
+          </p>
+        </>
+      ) : null}
+    </section>
+  )
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -775,6 +977,7 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
               <GlobalKpiCard />
               <HistoricalTrend />
               <StratumPerformanceChart />
+              <CompetencyComparisonChart />
             </>
           ) : (
             <>

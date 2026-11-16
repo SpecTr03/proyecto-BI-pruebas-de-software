@@ -5,9 +5,14 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 
 from ..auth import require_permission
+from ..controllers.comparativo_controller import calcular_comparativo_competencias
 from ..controllers.estrato_controller import calcular_desempeno_por_estrato
 from ..controllers.historico_controller import calcular_historico
-from ..models.grafica import EstratosResponse, HistoricoResponse
+from ..models.grafica import (
+    ComparativoCompetenciasResponse,
+    EstratosResponse,
+    HistoricoResponse,
+)
 
 router = APIRouter(
     prefix="/graficas",
@@ -59,3 +64,19 @@ def get_historico(
 )
 def get_desempeno_estratos() -> EstratosResponse:
     return calcular_desempeno_por_estrato()
+
+
+@router.get(
+    "/comparativo-competencias",
+    response_model=ComparativoCompetenciasResponse,
+    summary="Comparar una IES con el promedio nacional de su grupo",
+    responses={
+        422: {"description": "Institución y grupo de referencia requeridos"},
+        503: {"description": "MongoDB no disponible"},
+    },
+)
+def get_comparativo_competencias(
+    institucion: str = Query(..., min_length=1),
+    grupo_referencia: str = Query(..., min_length=1),
+) -> ComparativoCompetenciasResponse:
+    return calcular_comparativo_competencias(institucion, grupo_referencia)

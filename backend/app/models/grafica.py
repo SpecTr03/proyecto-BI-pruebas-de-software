@@ -24,3 +24,12 @@ class DesempenoEstrato(BaseModel):
 
 class EstratosResponse(BaseModel):
     datos: list[DesempenoEstrato] = Field(default_factory=list)
+
+
+class ComparativoCompetenciasResponse(BaseModel):
+    institucion: str
+    grupo_referencia: str
+    promedios_institucion: dict[str, float] = Field(default_factory=dict)
+    promedios_nacionales: dict[str, float] = Field(default_factory=dict)
+    total_institucion: int = Field(default=0, ge=0)
+    total_nacional: int = Field(default=0, ge=0)

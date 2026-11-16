@@ -31,6 +31,15 @@ export interface StratumPerformance {
   total_registros: number
 }
 
+export interface CompetencyComparison {
+  institucion: string
+  grupo_referencia: string
+  promedios_institucion: Record<string, number>
+  promedios_nacionales: Record<string, number>
+  total_institucion: number
+  total_nacional: number
+}
+
 interface FilterResponse {
   valores: string[]
   total: number
@@ -43,6 +52,11 @@ interface HistoricalResponse {
 
 interface StratumResponse {
   datos: StratumPerformance[]
+}
+
+interface ComparisonFilterOptions {
+  instituciones: string[]
+  grupos: string[]
 }
 
 async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
@@ -97,4 +111,24 @@ export async function getHistoricalTrend(
 export async function getStratumPerformance(signal?: AbortSignal): Promise<StratumPerformance[]> {
   const response = await getJson<StratumResponse>('/graficas/desempeno-estratos', signal)
   return response.datos
+}
+
+export async function listComparisonOptions(signal?: AbortSignal): Promise<ComparisonFilterOptions> {
+  const [institutions, groups] = await Promise.all([
+    getJson<FilterResponse>('/filtros/instituciones', signal),
+    getJson<FilterResponse>('/filtros/nucleos', signal),
+  ])
+  return { instituciones: institutions.valores, grupos: groups.valores }
+}
+
+export async function getCompetencyComparison(
+  institucion: string,
+  grupoReferencia: string,
+  signal?: AbortSignal,
+): Promise<CompetencyComparison> {
+  const query = new URLSearchParams({
+    institucion,
+    grupo_referencia: grupoReferencia,
+  })
+  return getJson<CompetencyComparison>(`/graficas/comparativo-competencias?${query}`, signal)
 }

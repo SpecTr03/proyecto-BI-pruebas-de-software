@@ -193,6 +193,29 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
 .stratum-bar { fill: #4e8178; transition: fill .15s ease; }
 .stratum-bar:hover { fill: #e2785b; }
 .stratum-value-label { fill: #183c43; font: 10px 'DM Mono', monospace; }
+.competency-comparison { margin-top: 30px; border: 1px solid #dfe1d9; background: rgba(255,255,255,.72); padding: clamp(22px, 4vw, 36px); }
+.competency-comparison h2 { margin: 0 0 9px; color: #183c43; font-size: clamp(21px, 3vw, 28px); letter-spacing: -.045em; }
+.competency-comparison header > p:last-child { margin: 0; color: #788783; font-size: 12px; line-height: 1.6; }
+.comparison-selectors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.comparison-selectors label { display: grid; gap: 7px; color: #657b77; font-size: 11px; font-weight: 700; }
+.comparison-selectors select { width: 100%; height: 40px; border: 1px solid #d3d9d4; border-radius: 3px; background: #fbfcf8; color: #183c43; padding: 0 10px; font: 12px 'Manrope', sans-serif; }
+.comparison-legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 24px 0 0; color: #657b77; font-size: 11px; }
+.comparison-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.comparison-legend i { width: 12px; height: 12px; border-radius: 2px; }
+.legend-institution { background: #e2785b; }
+.legend-national { background: #4e8178; }
+.comparison-chart-wrap { overflow-x: auto; }
+.comparison-chart { display: block; width: min(100%, 720px); min-width: 520px; height: auto; margin: 6px auto 0; }
+.comparison-grid { fill: none; stroke: #e4e7df; stroke-width: 1; }
+.comparison-axis { stroke: #d7dad1; stroke-width: 1; }
+.comparison-label { fill: #526c68; font: 11px 'Manrope', sans-serif; }
+.comparison-polygon { stroke-width: 2; stroke-linejoin: round; }
+.comparison-polygon.national { fill: rgba(78,129,120,.16); stroke: #4e8178; }
+.comparison-polygon.institution { fill: rgba(226,120,91,.18); stroke: #e2785b; }
+.comparison-point { stroke: #fffdf7; stroke-width: 1.5; cursor: help; }
+.comparison-point.national { fill: #4e8178; }
+.comparison-point.institution { fill: #e2785b; }
+.comparison-records { margin: 12px 0 0; color: #83918d; font-size: 10px; line-height: 1.6; }
 
 @media (max-width: 1100px) {
   .user-create-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -207,6 +230,7 @@ button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid 
   .period-filter { width: 100%; }
   .global-kpi-details { grid-template-columns: 1fr; }
   .trend-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .comparison-selectors { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 480px) {
