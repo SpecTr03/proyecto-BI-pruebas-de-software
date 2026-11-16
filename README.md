@@ -795,6 +795,106 @@ Devuelve el total de registros con nivel de inglés, la distribución por nivel 
 }
 ```
 
+### HU-23: Feature Importance Score
+
+**Endpoint:** `GET /api/modelo/importancia`
+
+Requiere el permiso `dashboard:read` y no acepta parámetros ni filtros. Devuelve el top 20 de variables más importantes del modelo XGBoost entrenado en HU-20, sin reentrenar. El artefacto se carga una sola vez con `@lru_cache`. Los nombres de las features se limpian quitando los prefijos `cat__` y `num__` y reemplazando `_` por espacios.
+
+**Errores:** `503` si el modelo no está entrenado, `500` si el `.pkl` está corrupto y `501` si el modelo no expone `feature_importances_`.
+
+**Ejemplo de respuesta:**
+
+```json
+{
+  "top_variable": "caracter academico UNIVERSIDAD",
+  "top_importancia": 0.2474556416273117,
+  "ranking": [
+    {
+      "variable": "caracter academico UNIVERSIDAD",
+      "importancia": 0.2474556416273117
+    },
+    {
+      "variable": "depto institucion CHOCO",
+      "importancia": 0.09768054634332657
+    },
+    {
+      "variable": "metodo programa PRESENCIAL",
+      "importancia": 0.0755365788936615
+    },
+    {
+      "variable": "depto reside BOGOTÁ",
+      "importancia": 0.056318748742341995
+    },
+    {
+      "variable": "educacion padre Postgrado",
+      "importancia": 0.028748707845807076
+    },
+    {
+      "variable": "depto reside CHOCO",
+      "importancia": 0.02664749138057232
+    },
+    {
+      "variable": "depto reside ANTIOQUIA",
+      "importancia": 0.023260336369276047
+    },
+    {
+      "variable": "depto reside LA GUAJIRA",
+      "importancia": 0.02242266945540905
+    },
+    {
+      "variable": "estrato",
+      "importancia": 0.022323668003082275
+    },
+    {
+      "variable": "depto reside SANTANDER",
+      "importancia": 0.01622817851603031
+    },
+    {
+      "variable": "educacion madre Postgrado",
+      "importancia": 0.015790287405252457
+    },
+    {
+      "variable": "depto reside CUNDINAMARCA",
+      "importancia": 0.014524768106639385
+    },
+    {
+      "variable": "depto institucion CAQUETA",
+      "importancia": 0.014478480443358421
+    },
+    {
+      "variable": "depto institucion ANTIOQUIA",
+      "importancia": 0.01434614323079586
+    },
+    {
+      "variable": "depto reside CORDOBA",
+      "importancia": 0.012182632461190224
+    },
+    {
+      "variable": "educacion madre Educación profesional completa",
+      "importancia": 0.011759686283767223
+    },
+    {
+      "variable": "metodo programa DISTANCIA",
+      "importancia": 0.011572504416108131
+    },
+    {
+      "variable": "depto reside MAGDALENA",
+      "importancia": 0.011319980025291443
+    },
+    {
+      "variable": "depto reside CESAR",
+      "importancia": 0.011004108935594559
+    },
+    {
+      "variable": "depto institucion LA GUAJIRA",
+      "importancia": 0.010995140299201012
+    }
+  ],
+  "total_features": 102
+}
+```
+
 ### HU-20: Entrenamiento y Selección de Modelos Predictivos
 
 **Script de entrenamiento:** `scripts/train_model.py`

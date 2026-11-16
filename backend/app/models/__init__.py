@@ -17,6 +17,7 @@ from .kpi import (
     KpiGlobalResponse,
     KpiResponse,
 )
+from .modelo import ImportanciaVariable, ModeloImportanciaResponse
 from .prediccion import PrediccionInput, PrediccionResponse
 from .salud import SaludBDResponse
 
@@ -27,11 +28,13 @@ __all__ = [
     "EstratosResponse",
     "HealthResponse",
     "HistoricoResponse",
+    "ImportanciaVariable",
     "InstitucionRanking",
     "KpiCoberturaResponse",
     "KpiCompetenciasResponse",
     "KpiGlobalResponse",
     "KpiResponse",
+    "ModeloImportanciaResponse",
     "PrediccionInput",
     "PrediccionResponse",
     "PuntoHistorico",

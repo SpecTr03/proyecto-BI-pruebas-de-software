@@ -509,6 +509,93 @@ def test_kpi_ingles(session: requests.Session, context: TestContext) -> None:
         )
 
 
+def test_modelo_importancia(
+    session: requests.Session,
+    context: TestContext,
+) -> None:
+    """Valida GET /api/modelo/importancia."""
+    response = session.get(
+        f"{context.base_url}/api/modelo/importancia",
+        timeout=TIMEOUT_SECONDS,
+    )
+    _assert_status(response)
+    data = _response_json(response)
+
+    top_variable = data.get("top_variable")
+    if not isinstance(top_variable, str) or not top_variable.strip():
+        raise AssertionError(
+            "'top_variable' debe ser un string no vacío; "
+            f"se recibió: {top_variable!r}."
+        )
+
+    top_importancia = data.get("top_importancia")
+    if (
+        not isinstance(top_importancia, (int, float))
+        or isinstance(top_importancia, bool)
+        or not 0 <= top_importancia <= 1
+    ):
+        raise AssertionError(
+            "'top_importancia' debe estar entre 0 y 1; "
+            f"se recibió: {top_importancia!r}."
+        )
+
+    ranking = data.get("ranking")
+    if not isinstance(ranking, list) or len(ranking) < 10:
+        raise AssertionError(
+            "'ranking' debe ser una lista con al menos 10 elementos; "
+            f"se recibió: {ranking!r}."
+        )
+
+    total_features = data.get("total_features")
+    if (
+        not isinstance(total_features, int)
+        or isinstance(total_features, bool)
+        or total_features < 100
+    ):
+        raise AssertionError(
+            "'total_features' debe ser un entero mayor o igual a 100; "
+            f"se recibió: {total_features!r}."
+        )
+
+    importancias: list[float] = []
+    for item in ranking:
+        if not isinstance(item, dict):
+            raise AssertionError(
+                "Cada elemento de 'ranking' debe ser un objeto; "
+                f"se recibió: {item!r}."
+            )
+        variable = item.get("variable")
+        importancia = item.get("importancia")
+        if not isinstance(variable, str) or not variable.strip():
+            raise AssertionError(
+                "Cada 'variable' del ranking debe ser un string no vacío; "
+                f"se recibió: {variable!r}."
+            )
+        if (
+            not isinstance(importancia, (int, float))
+            or isinstance(importancia, bool)
+            or not 0 <= importancia <= 1
+        ):
+            raise AssertionError(
+                "Cada 'importancia' del ranking debe estar entre 0 y 1; "
+                f"se recibió: {importancia!r}."
+            )
+        importancias.append(float(importancia))
+
+    if importancias != sorted(importancias, reverse=True):
+        raise AssertionError(
+            "'ranking' debe estar ordenado por importancia descendente; "
+            f"se recibió: {importancias!r}."
+        )
+
+    if top_variable != ranking[0]["variable"]:
+        raise AssertionError(
+            "'top_variable' debe coincidir con el primer elemento del "
+            f"ranking; se recibió: {top_variable!r} y "
+            f"{ranking[0]['variable']!r}."
+        )
+
+
 def test_salud_bd(session: requests.Session, context: TestContext) -> None:
     """Valida GET /api/salud-bd."""
     response = session.get(
@@ -625,6 +712,7 @@ AUTHENTICATED_TESTS: list[tuple[str, TestFunc]] = [
     ("GET /api/kpis/competencias", test_kpis_competencias),
     ("GET /api/kpis/cobertura", test_kpi_cobertura),
     ("GET /api/kpis/ingles", test_kpi_ingles),
+    ("GET /api/modelo/importancia", test_modelo_importancia),
     ("GET /api/salud-bd", test_salud_bd),
     ("POST /api/predecir", test_predecir),
 ]
