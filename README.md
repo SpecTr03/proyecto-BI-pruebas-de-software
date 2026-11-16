@@ -895,6 +895,53 @@ Requiere el permiso `dashboard:read` y no acepta parámetros ni filtros. Devuelv
 }
 ```
 
+### HU-25: Proyección de Crecimiento
+
+**Endpoint:** `GET /api/proyeccion/crecimiento`
+
+Requiere el permiso `dashboard:read`. Acepta el parámetro opcional `metodo`:
+
+- `promedio_movil` (por defecto): promedio de los últimos 3 periodos.
+- `regresion_lineal`: tendencia calculada con regresión lineal sobre los índices de los periodos.
+
+El histórico se agrega desde `Fact_Resultados`, agrupando primero por la FK indexada `id_tiempo` y resolviendo después `Dim_Tiempo` con `$lookup`. Solo se conservan periodos con al menos 100 registros. `periodo_proyectado` avanza al siguiente semestre lógico (`20226 → 20231`) y `tasa_crecimiento_porcentual` compara el promedio proyectado contra el actual.
+
+En la base actual hay 12 periodos que cumplen el mínimo de 100 registros; `20223` queda excluido por no alcanzarlo.
+
+**Errores:** `400` si el histórico no alcanza para el método, `422` si `metodo` no es válido y `503` si MongoDB no responde.
+
+**Rendimiento:** aproximadamente 1.5 s por consulta en caliente, por debajo del límite de 3 s.
+
+**Ejemplo de respuesta (`promedio_movil`):**
+
+```json
+{
+  "periodo_actual": "20226",
+  "promedio_actual": 160.18,
+  "periodo_proyectado": "20231",
+  "promedio_proyectado": 149.59,
+  "tasa_crecimiento_porcentual": -6.61,
+  "metodo": "promedio_movil",
+  "periodos_analizados": 12,
+  "historico": [
+    {"periodo": "20183", "promedio": 148.29},
+    {"periodo": "20184", "promedio": 143.87},
+    {"periodo": "20194", "promedio": 163.32},
+    {"periodo": "20195", "promedio": 146.64},
+    {"periodo": "20196", "promedio": 148.07},
+    {"periodo": "20202", "promedio": 167.86},
+    {"periodo": "20203", "promedio": 149.09},
+    {"periodo": "20212", "promedio": 144.72},
+    {"periodo": "20213", "promedio": 158.83},
+    {"periodo": "20222", "promedio": 143.0},
+    {"periodo": "20225", "promedio": 145.6},
+    {"periodo": "20226", "promedio": 160.18}
+  ]
+}
+```
+
+Con `metodo=regresion_lineal`, el promedio proyectado es `152.45` y la tasa es `-4.83%`.
+
 ### HU-20: Entrenamiento y Selección de Modelos Predictivos
 
 **Script de entrenamiento:** `scripts/train_model.py`

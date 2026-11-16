@@ -19,6 +19,7 @@ from .kpi import (
 )
 from .modelo import ImportanciaVariable, ModeloImportanciaResponse
 from .prediccion import PrediccionInput, PrediccionResponse
+from .proyeccion import ProyeccionCrecimientoResponse
 from .salud import SaludBDResponse
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "ModeloImportanciaResponse",
     "PrediccionInput",
     "PrediccionResponse",
+    "ProyeccionCrecimientoResponse",
     "PuntoHistorico",
     "RankingInstitucionesResponse",
     "SaludBDResponse",

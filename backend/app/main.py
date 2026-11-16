@@ -27,6 +27,7 @@ from .routes.kpis import router as kpis_router
 from .routes.modelo import router as modelo_router
 from .routes.neon import router as neon_router
 from .routes.prediccion import router as prediccion_router
+from .routes.proyeccion import router as proyeccion_router
 from .routes.salud_bd import router as salud_bd_router
 from .routes.users import router as users_router
 
@@ -87,6 +88,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(neon_router, prefix="/api")
 app.include_router(kpis_router, prefix="/api")
 app.include_router(modelo_router, prefix="/api")
+app.include_router(proyeccion_router, prefix="/api")
 app.include_router(filtros_router, prefix="/api")
 app.include_router(graficas_router, prefix="/api")
 app.include_router(prediccion_router, prefix="/api")

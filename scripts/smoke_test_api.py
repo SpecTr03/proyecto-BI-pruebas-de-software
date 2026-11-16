@@ -596,6 +596,164 @@ def test_modelo_importancia(
         )
 
 
+def test_proyeccion_crecimiento(
+    session: requests.Session,
+    context: TestContext,
+) -> None:
+    """Valida GET /api/proyeccion/crecimiento."""
+    response = session.get(
+        f"{context.base_url}/api/proyeccion/crecimiento",
+        timeout=TIMEOUT_SECONDS,
+    )
+    _assert_status(response)
+    data = _response_json(response)
+
+    periodo_actual = data.get("periodo_actual")
+    if (
+        not isinstance(periodo_actual, str)
+        or len(periodo_actual) != 5
+        or not periodo_actual.isdigit()
+    ):
+        raise AssertionError(
+            "'periodo_actual' debe ser un periodo de 5 dígitos; "
+            f"se recibió: {periodo_actual!r}."
+        )
+
+    periodo_proyectado = data.get("periodo_proyectado")
+    if (
+        not isinstance(periodo_proyectado, str)
+        or len(periodo_proyectado) != 5
+        or not periodo_proyectado.isdigit()
+    ):
+        raise AssertionError(
+            "'periodo_proyectado' debe ser un periodo de 5 dígitos; "
+            f"se recibió: {periodo_proyectado!r}."
+        )
+    if periodo_proyectado == periodo_actual:
+        raise AssertionError(
+            "'periodo_proyectado' debe ser distinto de 'periodo_actual'; "
+            f"se recibió: {periodo_proyectado!r}."
+        )
+
+    promedio_actual = data.get("promedio_actual")
+    if (
+        not isinstance(promedio_actual, (int, float))
+        or isinstance(promedio_actual, bool)
+        or not 0 <= promedio_actual <= 300
+    ):
+        raise AssertionError(
+            "'promedio_actual' debe estar entre 0 y 300; "
+            f"se recibió: {promedio_actual!r}."
+        )
+
+    promedio_proyectado = data.get("promedio_proyectado")
+    if (
+        not isinstance(promedio_proyectado, (int, float))
+        or isinstance(promedio_proyectado, bool)
+        or not 0 <= promedio_proyectado <= 300
+    ):
+        raise AssertionError(
+            "'promedio_proyectado' debe estar entre 0 y 300; "
+            f"se recibió: {promedio_proyectado!r}."
+        )
+
+    tasa = data.get("tasa_crecimiento_porcentual")
+    if not isinstance(tasa, (int, float)) or isinstance(tasa, bool):
+        raise AssertionError(
+            "'tasa_crecimiento_porcentual' debe ser numérico; "
+            f"se recibió: {tasa!r}."
+        )
+
+    if data.get("metodo") not in {"promedio_movil", "regresion_lineal"}:
+        raise AssertionError(
+            "'metodo' debe ser 'promedio_movil' o 'regresion_lineal'; "
+            f"se recibió: {data.get('metodo')!r}."
+        )
+
+    periodos_analizados = data.get("periodos_analizados")
+    if (
+        not isinstance(periodos_analizados, int)
+        or isinstance(periodos_analizados, bool)
+        or periodos_analizados < 5
+    ):
+        raise AssertionError(
+            "'periodos_analizados' debe ser un entero mayor o igual a 5; "
+            f"se recibió: {periodos_analizados!r}."
+        )
+
+    historico = data.get("historico")
+    if not isinstance(historico, list) or len(historico) < 5:
+        raise AssertionError(
+            "'historico' debe ser una lista con al menos 5 periodos; "
+            f"se recibió: {historico!r}."
+        )
+    if periodos_analizados != len(historico):
+        raise AssertionError(
+            "'periodos_analizados' debe coincidir con el tamaño de "
+            f"'historico'; se recibió {periodos_analizados} y "
+            f"{len(historico)}."
+        )
+
+    periodos_historico: list[str] = []
+    for item in historico:
+        if not isinstance(item, dict):
+            raise AssertionError(
+                "Cada elemento de 'historico' debe ser un objeto; "
+                f"se recibió: {item!r}."
+            )
+        periodo = item.get("periodo")
+        promedio = item.get("promedio")
+        if (
+            not isinstance(periodo, str)
+            or len(periodo) != 5
+            or not periodo.isdigit()
+        ):
+            raise AssertionError(
+                "Cada 'periodo' del histórico debe tener 5 dígitos; "
+                f"se recibió: {periodo!r}."
+            )
+        if (
+            not isinstance(promedio, (int, float))
+            or isinstance(promedio, bool)
+            or not 0 <= promedio <= 300
+        ):
+            raise AssertionError(
+                "Cada 'promedio' del histórico debe estar entre 0 y 300; "
+                f"se recibió: {promedio!r}."
+            )
+        periodos_historico.append(periodo)
+
+    if periodos_historico != sorted(periodos_historico):
+        raise AssertionError(
+            "'historico' debe estar ordenado por periodo ascendente; "
+            f"se recibió: {periodos_historico!r}."
+        )
+    if periodos_historico[-1] != periodo_actual:
+        raise AssertionError(
+            "El último periodo del histórico debe coincidir con "
+            f"'periodo_actual'; se recibió {periodos_historico[-1]!r} y "
+            f"{periodo_actual!r}."
+        )
+
+    tasa_esperada = (
+        round(
+            (
+                (promedio_proyectado - promedio_actual)
+                / promedio_actual
+            )
+            * 100,
+            2,
+        )
+        if promedio_actual
+        else 0.0
+    )
+    if abs(tasa - tasa_esperada) > 0.05:
+        raise AssertionError(
+            "'tasa_crecimiento_porcentual' no coincide con los promedios; "
+            f"se esperaba {tasa_esperada} y se recibió {tasa}."
+        )
+
+
 def test_salud_bd(session: requests.Session, context: TestContext) -> None:
     """Valida GET /api/salud-bd."""
     response = session.get(
@@ -713,6 +871,7 @@ AUTHENTICATED_TESTS: list[tuple[str, TestFunc]] = [
     ("GET /api/kpis/cobertura", test_kpi_cobertura),
     ("GET /api/kpis/ingles", test_kpi_ingles),
     ("GET /api/modelo/importancia", test_modelo_importancia),
+    ("GET /api/proyeccion/crecimiento", test_proyeccion_crecimiento),
     ("GET /api/salud-bd", test_salud_bd),
     ("POST /api/predecir", test_predecir),
 ]
