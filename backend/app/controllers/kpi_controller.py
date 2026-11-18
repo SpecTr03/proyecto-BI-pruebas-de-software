@@ -329,7 +329,7 @@ def clasificar_desempeno(promedio: float) -> str:
         ``"Deficiente"`` si el promedio es menor que 120, ``"Aceptable"``
         si está entre 120 y 180 inclusive, o ``"Sobresaliente"`` si supera 180.
     """
-    if promedio <= 120:
+    if promedio < 120:
         return "Deficiente"
     if promedio <= 180:
         return "Aceptable"
