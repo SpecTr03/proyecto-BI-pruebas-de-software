@@ -256,6 +256,32 @@ oficiales; los que comienzan por `NO OFICIAL` como no oficiales. El origen
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.
 
+### Documentación del pipeline de GitHub Actions
+
+El archivo [.github/workflows/ci.yml](./.github/workflows/ci.yml) define el
+pipeline de integración continua del proyecto:
+
+- **Nombre y disparadores:** el workflow se identifica como `Test, Build and
+  Validate` y se inicia con un push a `main` o `ci-pipeline`, así como con un
+  pull request hacia `main`.
+- **Permisos:** el job recibe únicamente permiso de lectura sobre el
+  repositorio.
+- **Entorno:** `ubuntu-latest` crea una máquina Linux limpia por ejecución.
+- **Checkout:** `actions/checkout@v7` descarga el commit que disparó el
+  pipeline.
+- **Python:** `actions/setup-python@v7` instala Python 3.14. Después se
+  actualiza pip, se instala pytest y las dependencias de `backend/requirements.txt`.
+- **Pruebas:** `python -m pytest backend/tests` descubre y ejecuta todos los
+  archivos `test_*.py` de la carpeta backend.
+- **Node.js:** `actions/setup-node@v7` configura Node.js 22 y habilita caché
+  basada en `frontend/package-lock.json`.
+- **Frontend:** `npm ci --prefix frontend` realiza una instalación reproducible
+  y `npm run build --prefix frontend` valida TypeScript y genera el bundle Vite.
+
+Cada paso debe finalizar correctamente para que el job sea aprobado. Si una
+prueba falla o el build presenta un error, GitHub Actions detiene el workflow y
+marca la ejecución como fallida.
+
 ### Ejecutar el pipeline localmente
 
 El comando siguiente reproduce las validaciones principales del workflow de
