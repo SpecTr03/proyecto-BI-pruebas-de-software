@@ -256,6 +256,39 @@ oficiales; los que comienzan por `NO OFICIAL` como no oficiales. El origen
 
 Se recomienda ejecutar Python dentro de un entorno virtual aislado.
 
+### Ejecutar el pipeline localmente
+
+El comando siguiente reproduce las validaciones principales del workflow de
+GitHub Actions: instala las dependencias, ejecuta los tests del backend y
+compila el frontend.
+
+```bash
+npm run ci:local
+```
+
+Requisitos:
+
+- Python 3.14 recomendado.
+- Node.js 22 o superior y npm.
+- Dependencias instalables sin secretos, ya que las pruebas actuales no
+  requieren conexiones externas.
+
+El pipeline local completo también puede ejecutarse paso a paso:
+
+```bash
+python -m pip install -r backend/requirements.txt
+python -m pytest backend/tests
+npm ci --prefix frontend
+npm run build --prefix frontend
+```
+
+Para ejecutar el archivo `.github/workflows/ci.yml` con la misma sintaxis de
+GitHub Actions, se puede usar `act` con Docker:
+
+```bash
+act push
+```
+
 ### Windows PowerShell
 
 ```powershell

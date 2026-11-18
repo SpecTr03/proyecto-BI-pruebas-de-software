@@ -1,6 +1,8 @@
 {
+  "type": "module",
   "scripts": {
-    "build": "npm --prefix frontend run build"
+    "build": "npm --prefix frontend run build",
+    "ci:local": "node scripts/local_pipeline.js"
   },
   "dependencies": {
     "@neon/config": "^1.13.0",
