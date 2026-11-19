@@ -9,6 +9,7 @@ from pymongo.errors import PyMongoError
 
 from ..database import mongo_connection
 from ..models.filtro import FiltroResponse
+from ..constants import normalize_catalog_value
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,9 @@ def obtener_valores_distintos(
             continue
         texto = str(value).strip()
         if texto:
-            valores.add(texto)
+            normalized = normalize_catalog_value(campo, texto)
+            if normalized:
+                valores.add(normalized)
 
     valores_ordenados = sorted(valores, key=str.casefold)
 

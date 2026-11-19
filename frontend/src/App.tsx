@@ -30,6 +30,13 @@ import {
   updateManagedUser,
   type ManagedUser,
 } from './services/usersApi'
+import {
+  listPredictionFilterOptions,
+  predictPerformance,
+  type PredictionInput,
+  type PredictionResult,
+  type PredictionFilterOptions,
+} from './services/predictionApi'
 import type { AuthSession, UserRole } from './types'
 
 function BrandMark() {
@@ -1255,6 +1262,133 @@ function KpiWorkspace({
   )
 }
 
+const INITIAL_PREDICTION_PROFILE: PredictionInput = {
+  genero: 'F',
+  estrato: 'Estrato 2',
+  educacion_padre: 'Educación profesional completa',
+  educacion_madre: 'Educación profesional completa',
+  tiene_internet: 'Si',
+  tiene_computador: 'Si',
+  caracter_academico: 'UNIVERSIDAD',
+  metodo_programa: 'PRESENCIAL',
+  depto_reside: 'VALLE',
+  depto_institucion: 'VALLE',
+}
+
+function ProbabilityPrediction() {
+  const [profile, setProfile] = useState<PredictionInput>(INITIAL_PREDICTION_PROFILE)
+  const [result, setResult] = useState<PredictionResult | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [optionsLoading, setOptionsLoading] = useState(true)
+  const [options, setOptions] = useState<PredictionFilterOptions | null>(null)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listPredictionFilterOptions(controller.signal)
+      .then((loadedOptions) => {
+        setOptions(loadedOptions)
+        setProfile((current) => ({
+          ...current,
+          educacion_padre: loadedOptions.educacion_padre.includes(current.educacion_padre)
+            ? current.educacion_padre
+            : loadedOptions.educacion_padre[0] ?? '',
+          educacion_madre: loadedOptions.educacion_madre.includes(current.educacion_madre)
+            ? current.educacion_madre
+            : loadedOptions.educacion_madre[0] ?? '',
+          caracter_academico: loadedOptions.caracter_academico.includes(current.caracter_academico)
+            ? current.caracter_academico
+            : loadedOptions.caracter_academico[0] ?? '',
+          metodo_programa: loadedOptions.metodo_programa.includes(current.metodo_programa)
+            ? current.metodo_programa
+            : loadedOptions.metodo_programa[0] ?? '',
+          depto_reside: loadedOptions.depto_reside.includes(current.depto_reside)
+            ? current.depto_reside
+            : loadedOptions.depto_reside[0] ?? '',
+          depto_institucion: loadedOptions.depto_institucion.includes(current.depto_institucion)
+            ? current.depto_institucion
+            : loadedOptions.depto_institucion[0] ?? '',
+        }))
+      })
+      .catch((reason) => {
+        setError(reason instanceof Error ? reason.message : 'No fue posible cargar las opciones.')
+      })
+      .finally(() => setOptionsLoading(false))
+    return () => controller.abort()
+  }, [])
+
+  function updateField(field: keyof PredictionInput, value: string) {
+    setProfile((current) => ({ ...current, [field]: value }))
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setLoading(true)
+    setError('')
+    try {
+      setResult(await predictPerformance(profile))
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'No fue posible calcular la probabilidad.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const probability = result?.probabilidad_superar_media_nacional ?? 0
+
+  return (
+    <section className="probability-workspace" aria-labelledby="probability-title">
+      <div className="probability-heading">
+        <div>
+          <p className="eyebrow">Inferencia probabilística</p>
+          <h2 id="probability-title">Probabilidad de superar la media nacional</h2>
+          <p>Define el perfil de la cohorte para estimar su riesgo y oportunidad antes de la prueba.</p>
+        </div>
+      </div>
+      <div className="probability-layout">
+        <form className="probability-form" onSubmit={submit}>
+          <label>Género<select value={profile.genero} onChange={(event) => updateField('genero', event.target.value)}><option>F</option><option>M</option></select></label>
+          <label>Estrato<select value={profile.estrato} onChange={(event) => updateField('estrato', event.target.value)}>{[1, 2, 3, 4, 5, 6].map((value) => <option key={value}>Estrato {value}</option>)}</select></label>
+          <label>Educación del padre<select value={profile.educacion_padre} onChange={(event) => updateField('educacion_padre', event.target.value)} disabled={optionsLoading} required>{(options?.educacion_padre ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label>Educación de la madre<select value={profile.educacion_madre} onChange={(event) => updateField('educacion_madre', event.target.value)} disabled={optionsLoading} required>{(options?.educacion_madre ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label>Internet<select value={profile.tiene_internet} onChange={(event) => updateField('tiene_internet', event.target.value)}><option>Si</option><option>No</option></select></label>
+          <label>Computador<select value={profile.tiene_computador} onChange={(event) => updateField('tiene_computador', event.target.value)}><option>Si</option><option>No</option></select></label>
+          <label>Carácter académico<select value={profile.caracter_academico} onChange={(event) => updateField('caracter_academico', event.target.value)} disabled={optionsLoading} required>{(options?.caracter_academico ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label>Metodología<select value={profile.metodo_programa} onChange={(event) => updateField('metodo_programa', event.target.value)} disabled={optionsLoading} required>{(options?.metodo_programa ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label>Departamento de residencia<select value={profile.depto_reside} onChange={(event) => updateField('depto_reside', event.target.value)} disabled={optionsLoading} required>{(options?.depto_reside ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label>Departamento de la institución<select value={profile.depto_institucion} onChange={(event) => updateField('depto_institucion', event.target.value)} disabled={optionsLoading} required>{(options?.depto_institucion ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <button className="probability-submit" type="submit" disabled={loading || optionsLoading}>
+            {loading ? <><FiLoader className="export-spinner" /> Calculando...</> : <>Estimar probabilidad <FiArrowRight /></>}
+          </button>
+        </form>
+        <aside className="probability-result" aria-live="polite">
+          {error ? (
+            <p className="probability-error" role="alert"><FiAlertCircle />{error}</p>
+          ) : result ? (
+            <>
+              <p className="probability-label">Probabilidad estimada</p>
+              <strong className="probability-number">{probability.toFixed(1)}%</strong>
+              <div className="probability-track" aria-hidden="true"><span style={{ width: `${probability}%` }} /></div>
+              <dl>
+                <div><dt>Puntaje previsto</dt><dd>{result.puntaje_predicho.toFixed(1)}</dd></div>
+                <div><dt>Media nacional</dt><dd>{result.media_nacional.toFixed(1)}</dd></div>
+                <div><dt>Desempeño</dt><dd>{result.nivel_desempeno}</dd></div>
+              </dl>
+              <p className="probability-guidance">
+                {probability >= 60
+                  ? 'Señal favorable. Mantén el seguimiento y refuerza las competencias con menor desempeño.'
+                  : 'Señal preventiva. Prioriza refuerzo pedagógico y seguimiento cercano a esta cohorte.'}
+              </p>
+            </>
+          ) : (
+            <div className="probability-empty"><FiTrendingUp /><p>Calcula el perfil para ver el porcentaje de superar la media nacional.</p></div>
+          )}
+        </aside>
+      </div>
+    </section>
+  )
+}
+
 function ProtectedRoute({ session, children }: { session: AuthSession | null; children: React.ReactNode }) {
   const location = useLocation()
   return session && authHeaders().Authorization ? children : <Navigate to="/login" replace state={{ from: location }} />
@@ -1389,6 +1523,8 @@ function Dashboard({ session, onLogout }: { session: AuthSession; onLogout: () =
             <UserManagement currentUserId={session.user.id} />
           ) : activeView === 'kpis' ? (
             <KpiWorkspace activeView={activeKpiView} onSelectView={setActiveKpiView} />
+          ) : activeView === 'predictions' ? (
+            <ProbabilityPrediction />
           ) : (
             <>
               <div className="signal-card">

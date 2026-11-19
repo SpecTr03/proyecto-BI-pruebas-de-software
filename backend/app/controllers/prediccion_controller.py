@@ -33,6 +33,14 @@ FEATURE_COLUMNS = [
 ]
 
 REQUIRED_ARTIFACT_KEYS = {"model", "preprocessor"}
+METRIC_FIELDS = [
+    "mod_razona_cuantitat_punt",
+    "mod_comuni_escrita_punt",
+    "mod_lectura_critica_punt",
+    "mod_ingles_punt",
+    "mod_competen_ciudada_punt",
+]
+DEFAULT_MEDIA_NACIONAL = 150.0
 
 
 class ModeloNoDisponibleError(RuntimeError):
@@ -123,6 +131,63 @@ def _clasificar_nivel(puntaje: float) -> str:
     return "Muy Alto"
 
 
+def _obtener_media_nacional(artifact: dict[str, Any]) -> float:
+    """Obtiene la media nacional del artefacto o de los hechos disponibles."""
+    media_artifact = artifact.get("media_nacional")
+    if isinstance(media_artifact, (int, float)):
+        media = float(media_artifact)
+        if math.isfinite(media) and 0 <= media <= 300:
+            return media
+
+    try:
+        from ..database import mongo_connection
+
+        database = mongo_connection.get_database()
+        expresion_promedio = {"$avg": [f"${campo}" for campo in METRIC_FIELDS]}
+        result = list(
+            database["Fact_Resultados"].aggregate([
+                {"$match": {campo: {"$ne": None} for campo in METRIC_FIELDS}},
+                {"$project": {
+                    "_puntaje_global": expresion_promedio,
+                }},
+                {"$match": {"_puntaje_global": {"$ne": None}}},
+                {"$group": {
+                    "_id": None,
+                    "media": {"$avg": "$_puntaje_global"},
+                }},
+            ], allowDiskUse=True)
+        )
+        if result:
+            media = float(result[0]["media"])
+            if math.isfinite(media) and 0 <= media <= 300:
+                return media
+    except Exception as exc:
+        logger.warning("No fue posible calcular la media nacional: %s", exc)
+
+    return DEFAULT_MEDIA_NACIONAL
+
+
+def _calcular_probabilidad_superar_media(
+    puntaje: float,
+    media_nacional: float,
+    artifact: dict[str, Any],
+) -> float:
+    """Estima una probabilidad logística a partir de la incertidumbre del modelo."""
+    uncertainty = artifact.get("test_rmse")
+    if not isinstance(uncertainty, (int, float)):
+        uncertainty = artifact.get("test_mae")
+    if not isinstance(uncertainty, (int, float)):
+        uncertainty = 25.0
+
+    uncertainty = float(uncertainty)
+    if not math.isfinite(uncertainty) or uncertainty <= 0:
+        uncertainty = 25.0
+
+    z = (puntaje - media_nacional) / max(uncertainty, 1.0)
+    probability = 1.0 / (1.0 + math.exp(-z))
+    return round(max(0.0, min(100.0, probability * 100.0)), 2)
+
+
 def predecir(input_data: dict[str, Any]) -> dict[str, Any]:
     """Genera la predicción del puntaje global para un estudiante.
 
@@ -144,6 +209,29 @@ def predecir(input_data: dict[str, Any]) -> dict[str, Any]:
     columnas = _columnas_entrada(preprocessor)
     fila = {columna: input_data.get(columna) for columna in columnas}
     fila["estrato"] = _parse_estrato(fila.get("estrato"))
+    metodo = fila.get("metodo_programa")
+    if isinstance(metodo, str) and metodo.upper() in {
+        "DISTANCIA VITUAL",
+        "DISTANCIA VIRTUAL",
+    }:
+        categories = getattr(preprocessor, "transformers_", None)
+        known_methods: set[str] = set()
+        if categories:
+            for transformer in categories:
+                if (
+                    isinstance(transformer, tuple)
+                    and len(transformer) >= 3
+                    and transformer[0] == "cat"
+                ):
+                    encoder = transformer[1]
+                    names = getattr(encoder, "categories_", None)
+                    if names:
+                        for category_list in names:
+                            known_methods.update(str(value) for value in category_list)
+        if "DISTANCIA VITUAL" in known_methods:
+            fila["metodo_programa"] = "DISTANCIA VITUAL"
+        else:
+            fila["metodo_programa"] = "DISTANCIA VIRTUAL"
     dataframe = pd.DataFrame([fila], columns=columnas)
 
     try:
@@ -165,9 +253,17 @@ def predecir(input_data: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("El modelo devolvió un puntaje no finito.")
 
     puntaje = max(0.0, min(300.0, puntaje))
+    media_nacional = _obtener_media_nacional(artifact)
+    probabilidad = _calcular_probabilidad_superar_media(
+        puntaje,
+        media_nacional,
+        artifact,
+    )
 
     return {
         "puntaje_predicho": round(puntaje, 2),
         "nivel_desempeno": _clasificar_nivel(puntaje),
         "confianza": None,
+        "probabilidad_superar_media_nacional": probabilidad,
+        "media_nacional": round(media_nacional, 2),
     }

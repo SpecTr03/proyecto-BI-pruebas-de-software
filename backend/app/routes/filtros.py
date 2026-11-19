@@ -55,6 +55,48 @@ def listar_departamentos() -> FiltroResponse:
 
 
 @router.get(
+    "/departamentos-institucion",
+    response_model=FiltroResponse,
+    summary="Listar departamentos de instituciones",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def listar_departamentos_institucion() -> FiltroResponse:
+    """Devuelve los departamentos únicos de las instituciones."""
+    return obtener_valores_distintos(
+        "Dim_Institucion",
+        "depto_institucion",
+    )
+
+
+@router.get(
+    "/educacion-padre",
+    response_model=FiltroResponse,
+    summary="Listar niveles educativos del padre",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def listar_educacion_padre() -> FiltroResponse:
+    """Devuelve los niveles educativos registrados para el padre."""
+    return obtener_valores_distintos(
+        "Dim_Estudiante",
+        "educacion_padre",
+    )
+
+
+@router.get(
+    "/educacion-madre",
+    response_model=FiltroResponse,
+    summary="Listar niveles educativos de la madre",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def listar_educacion_madre() -> FiltroResponse:
+    """Devuelve los niveles educativos registrados para la madre."""
+    return obtener_valores_distintos(
+        "Dim_Estudiante",
+        "educacion_madre",
+    )
+
+
+@router.get(
     "/municipios",
     response_model=FiltroResponse,
     summary="Listar municipios de residencia",

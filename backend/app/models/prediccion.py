@@ -85,3 +85,20 @@ class PrediccionResponse(BaseModel):
             "``None`` si no está disponible."
         ),
     )
+    probabilidad_superar_media_nacional: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        examples=[62.45],
+        description=(
+            "Probabilidad estimada, en porcentaje, de superar la media "
+            "nacional de Saber Pro."
+        ),
+    )
+    media_nacional: float = Field(
+        ...,
+        ge=0,
+        le=300,
+        examples=[148.72],
+        description="Media nacional usada como referencia.",
+    )

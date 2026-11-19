@@ -479,6 +479,7 @@ def train_and_select(
 def save_artifact(
     best_result: dict[str, Any],
     output_path: Path,
+    dataframe: pd.DataFrame | None = None,
 ) -> list[str]:
     """Guarda el modelo, el preprocesador y los nombres de features.
 
@@ -496,6 +497,13 @@ def save_artifact(
         "model": best_result["model"],
         "preprocessor": best_result["preprocessor"],
         "feature_names": feature_names,
+        "test_mae": float(best_result["test_mae"]),
+        "test_rmse": float(best_result["rmse"]),
+        "media_nacional": (
+            round(float(dataframe["punt_global"].mean()), 2)
+            if dataframe is not None and "punt_global" in dataframe
+            else None
+        ),
     }
 
     joblib.dump(artifact, output_path, compress=3)
@@ -615,7 +623,7 @@ def main() -> int:
         dataframe = load_dataset(collection, args.sample_size)
 
         best_result, results = train_and_select(dataframe)
-        feature_names = save_artifact(best_result, args.output)
+        feature_names = save_artifact(best_result, args.output, dataframe)
         print_report(results, best_result, feature_names, args.output)
         return 0
 

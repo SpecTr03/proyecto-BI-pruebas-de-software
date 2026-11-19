@@ -36,3 +36,16 @@ def normalize_dashboard_filter_value(
     if filter_key == "estrato" and text.isdigit():
         text = f"Estrato {text}"
     return text.casefold()
+
+
+def normalize_catalog_value(field: str, value: object) -> str | None:
+    """Corrige errores ortográficos conocidos en valores de catálogos."""
+    if value is None:
+        return None
+
+    text = str(value).strip()
+    if not text:
+        return None
+    if field == "metodo_programa" and text.upper() == "DISTANCIA VITUAL":
+        return "DISTANCIA VIRTUAL"
+    return text

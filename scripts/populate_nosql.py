@@ -51,6 +51,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from backend.app.constants import (
     DASHBOARD_FILTER_FIELDS,
+    normalize_catalog_value,
     normalize_dashboard_filter_value,
 )
 
@@ -395,6 +396,10 @@ class DocumentBuilder:
             name: as_text(row.get(column))
             for name, column in PROGRAM_FIELDS.items()
         }
+        fields["metodo_programa"] = normalize_catalog_value(
+            "metodo_programa",
+            fields.get("metodo_programa"),
+        )
         return {
             "_id": self._stable_object_id("Dim_Programa", *fields.values()),
             **fields,

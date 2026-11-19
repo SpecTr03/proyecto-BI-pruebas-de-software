@@ -2,8 +2,16 @@
 
 import pytest
 
+from backend.app.constants import normalize_catalog_value
 from backend.app.models.filtro import FiltroResponse
 from backend.app.routes import filtros
+
+
+def test_normaliza_distancia_virtual() -> None:
+    assert normalize_catalog_value(
+        "metodo_programa",
+        "DISTANCIA VITUAL",
+    ) == "DISTANCIA VIRTUAL"
 
 
 @pytest.mark.parametrize(
@@ -11,6 +19,9 @@ from backend.app.routes import filtros
     [
         ("listar_periodos", "Dim_Tiempo", "periodo"),
         ("listar_departamentos", "Dim_Estudiante", "depto_reside"),
+        ("listar_departamentos_institucion", "Dim_Institucion", "depto_institucion"),
+        ("listar_educacion_padre", "Dim_Estudiante", "educacion_padre"),
+        ("listar_educacion_madre", "Dim_Estudiante", "educacion_madre"),
         ("listar_municipios", "Dim_Estudiante", "mcpio_reside"),
         ("listar_instituciones", "Dim_Institucion", "nombre_institucion"),
         ("listar_caracteres", "Dim_Institucion", "caracter_academico"),
