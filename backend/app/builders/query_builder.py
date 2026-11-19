@@ -595,6 +595,68 @@ class QueryBuilder:
         )
         return pipeline
 
+    def build_global_by_department(
+        self,
+        metrics: Mapping[str, str],
+    ) -> list[dict[str, Any]]:
+        """Calcula el promedio global y el total por departamento."""
+        if not metrics:
+            raise ValueError("Debe indicar al menos una métrica.")
+        invalid = [metric for metric in metrics.values() if metric not in NUMERIC_METRICS]
+        if invalid:
+            allowed = ", ".join(sorted(NUMERIC_METRICS))
+            raise ValueError(
+                "Métrica(s) no permitida(s): "
+                f"{', '.join(sorted(set(invalid)))}. "
+                f"Métricas válidas: {allowed}"
+            )
+
+        filters = [
+            {
+                DASHBOARD_FILTER_FIELDS[key]: {"$in": values},
+            }
+            for key, values in self._dashboard_filter_values.items()
+            if key != "departamento"
+        ]
+        pipeline = []
+        if filters:
+            pipeline.append({"$match": {"$and": filters}})
+        pipeline.extend(
+            [
+                {
+                    "$set": {
+                        "_puntaje_global_registro": {
+                            "$avg": [f"${metric}" for metric in metrics.values()],
+                        }
+                    }
+                },
+                {
+                    "$group": {
+                        "_id": "$dashboard_filters.departamento",
+                        "promedio_global": {
+                            "$avg": "$_puntaje_global_registro"
+                        },
+                        "total_registros": {"$sum": 1},
+                    }
+                },
+                {
+                    "$match": {
+                        "_id": {"$nin": [None, "", "sin departamento"]},
+                    }
+                },
+                {
+                    "$project": {
+                        "_id": 0,
+                        "departamento": "$_id",
+                        "promedio_global": 1,
+                        "total_registros": 1,
+                    }
+                },
+                {"$sort": {"departamento": 1}},
+            ]
+        )
+        return pipeline
+
     def build_global_by_stratum(
         self,
         metrics: Mapping[str, str],

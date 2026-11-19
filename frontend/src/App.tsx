@@ -1,12 +1,15 @@
 import { FormEvent, useEffect, useRef, useState } from 'react'
 import { FiActivity, FiAlertCircle, FiArrowRight, FiArrowUpRight, FiBarChart2, FiCheckCircle, FiDatabase, FiDownload, FiEye, FiEyeOff, FiFileText, FiLoader, FiLock, FiLogOut, FiMail, FiMenu, FiPieChart, FiShield, FiSliders, FiTrendingUp, FiUsers, FiX } from 'react-icons/fi'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
+import { ComposableMap, Geographies, Geography, ZoomableGroup } from 'react-simple-maps'
 import { authHeaders, clearSession, getSession, login } from './services/authApi'
 import { getGlobalKpi, listPeriods, type GlobalKpi } from './services/kpisApi'
 import {
   getHistoricalTrend,
   getCompetencyComparison,
   getInstitutionRankings,
+  getDepartmentDistribution,
+  listYearOptions,
   listComparisonOptions,
   getStratumPerformance,
   listTrendFilterOptions,
@@ -15,6 +18,7 @@ import {
   type CompetencyComparison,
   type InstitutionRanking,
   type InstitutionRankings,
+  type DepartmentResult,
   type TrendFilterKey,
   type TrendFilterOptions,
   type TrendFilters,
@@ -844,6 +848,212 @@ function CompetencyComparisonChart() {
   )
 }
 
+function normalizeDepartment(value: string): string {
+  const normalized = value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (normalized.includes('bogota') && normalized.includes('d.c')) return 'bogota d.c.'
+  if (normalized.includes('archipielago de san andres')) return 'san andres y providencia'
+  return normalized
+}
+
+function DepartmentMap() {
+  const [filters, setFilters] = useState<TrendFilters>(EMPTY_TREND_FILTERS)
+  const [years, setYears] = useState<string[]>([])
+  const [data, setData] = useState<DepartmentResult[]>([])
+  const [loadingOptions, setLoadingOptions] = useState(true)
+  const [loadingMap, setLoadingMap] = useState(false)
+  const [optionsError, setOptionsError] = useState('')
+  const [mapError, setMapError] = useState('')
+  const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [zoom, setZoom] = useState(1)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listYearOptions(controller.signal)
+      .then(setYears)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setOptionsError(reason instanceof Error ? reason.message : 'No fue posible cargar los filtros.')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingOptions(false)
+      })
+    return () => controller.abort()
+  }, [])
+
+  useEffect(() => {
+    if (loadingOptions || optionsError) return
+    const controller = new AbortController()
+    setLoadingMap(true)
+    setMapError('')
+    getDepartmentDistribution(filters, controller.signal)
+      .then(setData)
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setMapError(reason instanceof Error ? reason.message : 'No fue posible consultar la distribución geográfica.')
+          setData([])
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoadingMap(false)
+      })
+    return () => controller.abort()
+  }, [filters, loadingOptions, optionsError])
+
+  const values = data.map((item) => item.promedio_global)
+  const minimum = values.length ? Math.min(...values) : 0
+  const maximum = values.length ? Math.max(...values) : 300
+  const range = maximum - minimum || 1
+  const scoreColor = (score: number) => {
+    const ratio = Math.max(0, Math.min(1, (score - minimum) / range))
+    if (ratio >= 0.75) return '#1f6a5a'
+    if (ratio >= 0.5) return '#4d8b70'
+    if (ratio >= 0.25) return '#d2a95f'
+    return '#bd6652'
+  }
+  const byDepartment = new Map(
+    data.map((item) => [normalizeDepartment(item.departamento), item]),
+  )
+  const selected = selectedDepartment
+    ? byDepartment.get(normalizeDepartment(selectedDepartment))
+    : null
+
+  function updateFilter(key: TrendFilterKey, value: string) {
+    setFilters((current) => ({ ...current, [key]: value }))
+  }
+
+  return (
+    <section className="department-map" aria-labelledby="department-map-title">
+      <header>
+        <p className="eyebrow">Disparidades territoriales</p>
+        <h2 id="department-map-title">Puntaje promedio por departamento</h2>
+        <p>Selecciona una región para consultar su promedio y haz zoom sobre el mapa.</p>
+      </header>
+
+      <div className="department-controls">
+        <label htmlFor="department-year">
+          Año
+          <select
+            id="department-year"
+            value={filters.anio}
+            onChange={(event) => updateFilter('anio', event.target.value)}
+            disabled={loadingOptions || optionsError !== ''}
+          >
+            <option value="">Todos los años</option>
+            {years.map((year) => <option value={year} key={year}>{year}</option>)}
+          </select>
+        </label>
+      </div>
+
+      <div className="department-map-toolbar" aria-label="Controles del mapa">
+        <button type="button" onClick={() => setZoom((current) => Math.max(1, current - 0.25))} disabled={zoom <= 1}>−</button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button type="button" onClick={() => setZoom((current) => Math.min(2, current + 0.25))} disabled={zoom >= 2}>+</button>
+        {selectedDepartment && <button type="button" className="department-reset" onClick={() => { setSelectedDepartment(''); setZoom(1) }}>Restablecer</button>}
+      </div>
+
+      {optionsError ? (
+        <p className="trend-message is-error" role="alert">{optionsError}</p>
+      ) : loadingOptions || loadingMap ? (
+        <p className="trend-message" role="status">Cargando distribución geográfica...</p>
+      ) : (
+        <>
+          {mapError && <p className="trend-message is-error" role="alert">{mapError}</p>}
+          <div className="department-map-layout">
+          <div className={`department-map-viewport${zoom >= 1.5 ? ' is-pannable' : ''}`}>
+            <ComposableMap
+              width={800}
+              height={600}
+              projection="geoMercator"
+              projectionConfig={{ center: [-74, 4], scale: 1900 }}
+              role="img"
+              aria-label="Mapa de Colombia coloreado por puntaje promedio por departamento"
+              className="department-map-svg"
+            >
+              <ZoomableGroup
+                key={zoom}
+                center={[-74, 4]}
+                zoom={zoom}
+                minZoom={1}
+                maxZoom={2}
+                filterZoomEvent={(event) => !('button' in event) || event.button === 0}
+              >
+                <Geographies geography="/geo/colombia-departamentos.geojson">
+                  {({ geographies }) =>
+                    geographies.map((geography) => {
+                      const departmentName = normalizeDepartment(
+                        String((geography.properties as Record<string, unknown>)?.dpto_nombre ?? ''),
+                      )
+                      const item = byDepartment.get(departmentName)
+                      const isSelected =
+                        Boolean(selectedDepartment) &&
+                        normalizeDepartment(selectedDepartment) === departmentName
+                      return (
+                        <Geography
+                          key={geography.rsmKey}
+                          geography={geography}
+                          role="button"
+                          tabIndex={item ? 0 : -1}
+                          aria-label={
+                            item
+                              ? `${item.departamento}: ${item.promedio_global.toFixed(2)} puntos`
+                              : departmentName
+                          }
+                          className={`department-geography${isSelected ? ' is-selected' : ''}`}
+                          fill={item ? scoreColor(item.promedio_global) : '#e7ebe5'}
+                          onClick={() => item && setSelectedDepartment(item.departamento)}
+                          onKeyDown={(event) => {
+                            if (item && (event.key === 'Enter' || event.key === ' ')) {
+                              event.preventDefault()
+                              setSelectedDepartment(item.departamento)
+                            }
+                          }}
+                        >
+                          {item && (
+                            <title>{`${item.departamento}: ${item.promedio_global.toFixed(2)} puntos; ${item.total_registros.toLocaleString('es-CO')} registros`}</title>
+                          )}
+                        </Geography>
+                      )
+                    })
+                  }
+                </Geographies>
+              </ZoomableGroup>
+            </ComposableMap>
+            </div>
+          <aside className="department-detail" aria-live="polite">
+            <small>Detalle seleccionado</small>
+            {selected ? (
+              <>
+                <strong>{selected.departamento}</strong>
+                <span>{selected.promedio_global.toFixed(2)} puntos</span>
+                <p>{selected.total_registros.toLocaleString('es-CO')} estudiantes evaluados</p>
+              </>
+            ) : (
+              <>
+                <strong>Colombia</strong>
+                <span>{values.length ? (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(2) : '—'} puntos</span>
+                <p>{data.reduce((sum, item) => sum + item.total_registros, 0).toLocaleString('es-CO')} estudiantes evaluados</p>
+              </>
+            )}
+            <div className="department-scale">
+              <span style={{ background: '#bd6652' }} /> Bajo
+              <span style={{ background: '#d2a95f' }} /> Medio
+              <span style={{ background: '#4d8b70' }} /> Alto
+              <span style={{ background: '#1f6a5a' }} /> Sobresaliente
+            </div>
+          </aside>
+          </div>
+        </>
+      )}
+    </section>
+  )
+}
+
 function InstitutionRankingChart() {
   const [type, setType] = useState<InstitutionRankings['tipo']>('OFICIAL')
   const [rankings, setRankings] = useState<InstitutionRankings | null>(null)
@@ -957,6 +1167,7 @@ const KPI_VIEWS = [
   { id: 'strata', label: 'Estratos', detail: 'Brecha socioeconómica', icon: <FiPieChart /> },
   { id: 'comparison', label: 'Comparativo', detail: 'IES frente a su grupo', icon: <FiUsers /> },
   { id: 'ranking', label: 'Ranking', detail: 'Desempeño institucional', icon: <FiBarChart2 /> },
+  { id: 'departments', label: 'Territorio', detail: 'Mapa por departamento', icon: <FiActivity /> },
 ] as const
 
 type KpiViewId = (typeof KPI_VIEWS)[number]['id']
@@ -1038,6 +1249,7 @@ function KpiWorkspace({
         {activeView === 'strata' && <StratumPerformanceChart />}
         {activeView === 'comparison' && <CompetencyComparisonChart />}
         {activeView === 'ranking' && <InstitutionRankingChart />}
+        {activeView === 'departments' && <DepartmentMap />}
       </div>
     </section>
   )

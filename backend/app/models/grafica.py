@@ -45,3 +45,13 @@ class RankingInstitucionesResponse(BaseModel):
     tipo: Literal["OFICIAL", "NO OFICIAL"]
     top: list[InstitucionRanking] = Field(default_factory=list)
     bottom: list[InstitucionRanking] = Field(default_factory=list)
+
+
+class DepartamentoResultado(BaseModel):
+    departamento: str
+    promedio_global: float
+    total_registros: int = Field(..., ge=0)
+
+
+class DistribucionDepartamentalResponse(BaseModel):
+    datos: list[DepartamentoResultado] = Field(default_factory=list)

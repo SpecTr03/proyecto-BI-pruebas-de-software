@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends, Query
 
 from ..auth import require_permission
 from ..controllers.comparativo_controller import calcular_comparativo_competencias
+from ..controllers.distribucion_controller import calcular_distribucion_departamental
 from ..controllers.estrato_controller import calcular_desempeno_por_estrato
 from ..controllers.historico_controller import calcular_historico
 from ..controllers.ranking_controller import calcular_ranking_instituciones
 from ..models.grafica import (
     ComparativoCompetenciasResponse,
+    DistribucionDepartamentalResponse,
     EstratosResponse,
     HistoricoResponse,
     RankingInstitucionesResponse,
@@ -94,3 +96,18 @@ def get_ranking_instituciones(
     tipo: Literal["OFICIAL", "NO OFICIAL"] = Query(...),
 ) -> RankingInstitucionesResponse:
     return calcular_ranking_instituciones(tipo)
+
+
+@router.get(
+    "/distribucion-departamental",
+    response_model=DistribucionDepartamentalResponse,
+    summary="Promedio global por departamento",
+    responses={503: {"description": "MongoDB no disponible"}},
+)
+def get_distribucion_departamental(
+    anio: int | None = Query(default=None, ge=2018, le=2022),
+) -> DistribucionDepartamentalResponse:
+    filtros: dict[str, Any] = {"anio": str(anio)} if anio is not None else {}
+    return calcular_distribucion_departamental(
+        {key: value for key, value in filtros.items() if value is not None}
+    )

@@ -52,6 +52,16 @@ export interface InstitutionRankings {
   bottom: InstitutionRanking[]
 }
 
+export interface DepartmentResult {
+  departamento: string
+  promedio_global: number
+  total_registros: number
+}
+
+interface DepartmentDistributionResponse {
+  datos: DepartmentResult[]
+}
+
 interface FilterResponse {
   valores: string[]
   total: number
@@ -107,6 +117,11 @@ export async function listTrendFilterOptions(signal?: AbortSignal): Promise<Tren
   return Object.fromEntries(responses) as TrendFilterOptions
 }
 
+export async function listYearOptions(signal?: AbortSignal): Promise<string[]> {
+  const response = await getJson<FilterResponse>('/filtros/anios', signal)
+  return response.valores
+}
+
 export async function getHistoricalTrend(
   filters: TrendFilters,
   signal?: AbortSignal,
@@ -151,4 +166,20 @@ export async function getInstitutionRankings(
 ): Promise<InstitutionRankings> {
   const query = new URLSearchParams({ tipo })
   return getJson<InstitutionRankings>(`/graficas/ranking-instituciones?${query}`, signal)
+}
+
+export async function getDepartmentDistribution(
+  filters: TrendFilters,
+  signal?: AbortSignal,
+): Promise<DepartmentResult[]> {
+  const query = new URLSearchParams()
+  for (const [key, value] of Object.entries(filters)) {
+    if (value && key !== 'departamento') query.set(key, value)
+  }
+  const suffix = query.size > 0 ? `?${query.toString()}` : ''
+  const response = await getJson<DepartmentDistributionResponse>(
+    `/graficas/distribucion-departamental${suffix}`,
+    signal,
+  )
+  return response.datos
 }

@@ -235,6 +235,14 @@ La vista también muestra los promedios globales por estrato (1 a 6) en un
 gráfico de barras con el total de estudiantes por categoría. El endpoint
 protegido es `GET /api/graficas/desempeno-estratos`.
 
+### Distribución geográfica por departamento (HU18)
+
+La vista **Territorio** presenta un mapa esquemático interactivo de Colombia
+con una escala de colores por puntaje promedio. Permite aplicar los filtros
+analíticos, seleccionar un departamento, consultar su detalle y aumentar o
+disminuir el zoom. El endpoint protegido es
+`GET /api/graficas/distribucion-departamental`.
+
 ### Comparativo por grupo de referencia (HU16)
 
 La vista presenta un gráfico radar con las cinco competencias, comparando los

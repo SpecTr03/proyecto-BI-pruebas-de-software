@@ -3,6 +3,7 @@ from bson import ObjectId
 from backend.app.builders.query_builder import QueryBuilder
 from backend.app.constants import DASHBOARD_FILTER_FIELDS
 from backend.app.controllers import comparativo_controller
+from backend.app.controllers import distribucion_controller
 from backend.app.controllers import estrato_controller
 from backend.app.controllers import historico_controller
 from backend.app.controllers import ranking_controller
@@ -198,6 +199,42 @@ def test_filter_year_endpoint_returns_distinct_years(monkeypatch) -> None:
         valores=["2018", "2019", "2022"],
         total=3,
     )
+
+
+def test_query_builder_groups_global_score_by_department() -> None:
+    pipeline = QueryBuilder().build_global_by_department(METRICAS_COMPETENCIAS)
+
+    assert not any("$lookup" in stage for stage in pipeline)
+    group = next(stage["$group"] for stage in pipeline if "$group" in stage)
+    assert group["_id"] == "$dashboard_filters.departamento"
+    assert group["promedio_global"] == {"$avg": "$_puntaje_global_registro"}
+    assert pipeline[-1] == {"$sort": {"departamento": 1}}
+
+
+def test_department_distribution_normalizes_names_and_ignores_foreign_places(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        distribucion_controller,
+        "_obtener_database",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        distribucion_controller,
+        "_ejecutar_agregacion",
+        lambda database, pipeline, collection: [
+            {"departamento": "Bogotá", "promedio_global": 155.126, "total_registros": 20},
+            {"departamento": "NORTE SANTANDER", "promedio_global": 144.5, "total_registros": 10},
+            {"departamento": "Miami", "promedio_global": 180, "total_registros": 2},
+        ],
+    )
+
+    response = distribucion_controller.calcular_distribucion_departamental({})
+
+    assert [item.model_dump() for item in response.datos] == [
+        {"departamento": "bogota d.c.", "promedio_global": 155.13, "total_registros": 20},
+        {"departamento": "norte de santander", "promedio_global": 144.5, "total_registros": 10},
+    ]
 
 
 def test_query_builder_groups_global_score_by_student_stratum() -> None:
