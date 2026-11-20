@@ -1311,6 +1311,13 @@ function ProbabilityPrediction() {
         }))
       })
       .catch((reason) => {
+        if (
+          reason instanceof DOMException && reason.name === 'AbortError'
+          || typeof reason === 'object'
+          && reason !== null
+          && 'name' in reason
+          && reason.name === 'AbortError'
+        ) return
         setError(reason instanceof Error ? reason.message : 'No fue posible cargar las opciones.')
       })
       .finally(() => setOptionsLoading(false))
@@ -1381,7 +1388,7 @@ function ProbabilityPrediction() {
               </p>
             </>
           ) : (
-            <div className="probability-empty"><FiTrendingUp /><p>Calcula el perfil para ver el porcentaje de superar la media nacional.</p></div>
+            <div className="probability-empty"><FiTrendingUp /><p>Selecciona los filtros y estima la probabilidad.</p></div>
           )}
         </aside>
       </div>
