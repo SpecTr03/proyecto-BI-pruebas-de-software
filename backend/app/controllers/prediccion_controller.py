@@ -42,6 +42,7 @@ METRIC_FIELDS = [
     "mod_competen_ciudada_punt",
 ]
 DEFAULT_MEDIA_NACIONAL = 150.0
+DEFAULT_QUINTIL_INFERIOR = 125.6
 
 
 class ModeloNoDisponibleError(RuntimeError):
@@ -189,6 +190,43 @@ def _calcular_probabilidad_superar_media(
     return round(max(0.0, min(100.0, probability * 100.0)), 2)
 
 
+def _obtener_quintil_inferior(artifact: dict[str, Any]) -> float:
+    """Obtiene el umbral del 20% inferior usado para medir el riesgo."""
+    threshold = artifact.get("quintil_inferior")
+    if isinstance(threshold, (int, float)):
+        threshold = float(threshold)
+        if math.isfinite(threshold) and 0 <= threshold <= 300:
+            return threshold
+    return DEFAULT_QUINTIL_INFERIOR
+
+
+def _calcular_probabilidad_riesgo(
+    puntaje: float,
+    quintil_inferior: float,
+    artifact: dict[str, Any],
+) -> float:
+    """Estima la probabilidad de quedar en el quintil inferior."""
+    uncertainty = artifact.get("test_rmse", artifact.get("test_mae", 25.0))
+    if not isinstance(uncertainty, (int, float)):
+        uncertainty = 25.0
+    uncertainty = float(uncertainty)
+    if not math.isfinite(uncertainty) or uncertainty <= 0:
+        uncertainty = 25.0
+
+    z = (quintil_inferior - puntaje) / max(uncertainty, 1.0)
+    probability = 1.0 / (1.0 + math.exp(-z))
+    return round(max(0.0, min(100.0, probability * 100.0)), 2)
+
+
+def _clasificar_riesgo(probabilidad: float) -> str:
+    """Clasifica el riesgo para priorizar acciones institucionales."""
+    if probabilidad >= 66:
+        return "Alto"
+    if probabilidad >= 33:
+        return "Medio"
+    return "Bajo"
+
+
 def predecir(input_data: dict[str, Any]) -> dict[str, Any]:
     """Genera la predicción del puntaje global para un estudiante.
 
@@ -255,6 +293,12 @@ def predecir(input_data: dict[str, Any]) -> dict[str, Any]:
 
     puntaje = max(0.0, min(300.0, puntaje))
     media_nacional = _obtener_media_nacional(artifact)
+    quintil_inferior = _obtener_quintil_inferior(artifact)
+    probabilidad_riesgo = _calcular_probabilidad_riesgo(
+        puntaje,
+        quintil_inferior,
+        artifact,
+    )
     probabilidad = _calcular_probabilidad_superar_media(
         puntaje,
         media_nacional,
@@ -267,4 +311,7 @@ def predecir(input_data: dict[str, Any]) -> dict[str, Any]:
         "confianza": None,
         "probabilidad_superar_media_nacional": probabilidad,
         "media_nacional": round(media_nacional, 2),
+        "probabilidad_riesgo_quintil_inferior": probabilidad_riesgo,
+        "nivel_riesgo": _clasificar_riesgo(probabilidad_riesgo),
+        "umbral_quintil_inferior": round(quintil_inferior, 2),
     }

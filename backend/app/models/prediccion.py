@@ -102,3 +102,22 @@ class PrediccionResponse(BaseModel):
         examples=[148.72],
         description="Media nacional usada como referencia.",
     )
+    probabilidad_riesgo_quintil_inferior: float = Field(
+        ...,
+        ge=0,
+        le=100,
+        examples=[38.2],
+        description="Porcentaje estimado de riesgo de quedar en el quintil inferior.",
+    )
+    nivel_riesgo: str = Field(
+        ...,
+        examples=["Medio"],
+        description="Nivel de riesgo académico: Bajo, Medio o Alto.",
+    )
+    umbral_quintil_inferior: float = Field(
+        ...,
+        ge=0,
+        le=300,
+        examples=[125.6],
+        description="Puntaje límite del 20% inferior de la distribución.",
+    )

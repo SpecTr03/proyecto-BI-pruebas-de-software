@@ -44,3 +44,24 @@ def test_probabilidad_supera_media_aumenta_con_el_puntaje() -> None:
     ]
 
     assert probabilidades == sorted(probabilidades)
+
+
+def test_riesgo_quintil_inferior_disminuye_al_subir_el_puntaje() -> None:
+    artifact = {"test_rmse": 20.0}
+    riesgos = [
+        prediccion_controller._calcular_probabilidad_riesgo(
+            puntaje,
+            125.6,
+            artifact,
+        )
+        for puntaje in (100.0, 125.6, 160.0)
+    ]
+
+    assert riesgos == sorted(riesgos, reverse=True)
+    assert math.isclose(riesgos[1], 50.0, abs_tol=0.01)
+
+
+def test_clasificar_riesgo_devuelve_niveles_cuantitativos() -> None:
+    assert prediccion_controller._clasificar_riesgo(70) == "Alto"
+    assert prediccion_controller._clasificar_riesgo(40) == "Medio"
+    assert prediccion_controller._clasificar_riesgo(20) == "Bajo"

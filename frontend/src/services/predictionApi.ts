@@ -21,6 +21,9 @@ export interface PredictionResult {
   confianza: number | null
   probabilidad_superar_media_nacional: number
   media_nacional: number
+  probabilidad_riesgo_quintil_inferior: number
+  nivel_riesgo: string
+  umbral_quintil_inferior: number
 }
 
 export interface PredictionFilterOptions {

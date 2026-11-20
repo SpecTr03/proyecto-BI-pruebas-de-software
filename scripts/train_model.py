@@ -504,6 +504,11 @@ def save_artifact(
             if dataframe is not None and "punt_global" in dataframe
             else None
         ),
+        "quintil_inferior": (
+            round(float(dataframe["punt_global"].quantile(0.2)), 2)
+            if dataframe is not None and "punt_global" in dataframe
+            else None
+        ),
     }
 
     joblib.dump(artifact, output_path, compress=3)
