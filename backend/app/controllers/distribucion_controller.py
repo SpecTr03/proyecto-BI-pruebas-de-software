@@ -1,6 +1,7 @@
 """Cálculo geográfico del puntaje global por departamento."""
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from ..builders.query_builder import QueryBuilder
 from ..models.grafica import DepartamentoResultado, DistribucionDepartamentalResponse
@@ -11,7 +12,6 @@ from .kpi_controller import (
     _obtener_database,
     _redondear,
 )
-
 
 DEPARTMENT_ALIASES = {
     "bogota": "bogota d.c.",

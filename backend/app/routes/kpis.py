@@ -118,7 +118,7 @@ def _obtener_filtros_dashboard(
     },
 )
 def get_kpi(
-    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),  # noqa: B008
     metrica: str = Query(
         default=DEFAULT_METRIC,
         description="Métrica numérica a promediar.",
@@ -139,7 +139,7 @@ def get_kpi(
     responses={503: {"description": "MongoDB no disponible"}},
 )
 def get_kpi_global(
-    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),  # noqa: B008
 ) -> dict[str, Any]:
     """Calcula el promedio global de las cinco competencias.
 
@@ -157,7 +157,7 @@ def get_kpi_global(
     responses={503: {"description": "MongoDB no disponible"}},
 )
 def get_kpi_competencias(
-    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),  # noqa: B008
 ) -> dict[str, Any]:
     """Calcula los promedios y el indicador cualitativo de cada competencia.
 
@@ -177,7 +177,7 @@ def get_kpi_competencias(
     responses={503: {"description": "MongoDB no disponible"}},
 )
 def get_kpi_cobertura(
-    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),  # noqa: B008
 ) -> dict[str, Any]:
     """Calcula el total de evaluados y el porcentaje en estratos 1 y 2.
 
@@ -194,7 +194,7 @@ def get_kpi_cobertura(
     responses={503: {"description": "MongoDB no disponible"}},
 )
 def get_kpi_ingles(
-    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),
+    filtros: dict[str, Any] = Depends(_obtener_filtros_dashboard),  # noqa: B008
 ) -> dict[str, Any]:
     """Calcula la distribución de niveles de inglés y el porcentaje B1/B2.
 

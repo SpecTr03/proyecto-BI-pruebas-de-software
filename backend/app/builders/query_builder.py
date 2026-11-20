@@ -186,7 +186,7 @@ class QueryBuilder:
         value: Any,
         normalizer: Callable[[str], str] | None = None,
         dashboard_filter_key: str | None = None,
-    ) -> "QueryBuilder":
+    ) -> QueryBuilder:
         """Agrega un filtro y registra la dimensión que necesita ``$lookup``."""
         lookup = DIMENSION_LOOKUPS[dimension]
         condition = self._build_condition(
@@ -216,17 +216,17 @@ class QueryBuilder:
     # Filtros públicos (10 filtros del dashboard + filtros adicionales)
     # ------------------------------------------------------------------
 
-    def filtrar_por_periodo(self, periodo: Any) -> "QueryBuilder":
+    def filtrar_por_periodo(self, periodo: Any) -> QueryBuilder:
         """Filtra por periodo académico, por ejemplo ``20225``."""
         return self._add_filter("tiempo", "periodo", periodo)
 
-    def filtrar_por_tiempo_id(self, tiempo_id: Any) -> "QueryBuilder":
+    def filtrar_por_tiempo_id(self, tiempo_id: Any) -> QueryBuilder:
         """Filtra directamente por FK para aprovechar el índice de tiempo en hechos."""
         if tiempo_id is not None:
             self._fact_conditions.append({"id_tiempo": tiempo_id})
         return self
 
-    def filtrar_por_anio(self, anio: Any) -> "QueryBuilder":
+    def filtrar_por_anio(self, anio: Any) -> QueryBuilder:
         """Filtra por los cuatro primeros dígitos del periodo académico."""
         values = self._clean_values(anio)
         if not values:
@@ -255,7 +255,7 @@ class QueryBuilder:
         ]
         return self
 
-    def filtrar_por_departamento(self, depto: Any) -> "QueryBuilder":
+    def filtrar_por_departamento(self, depto: Any) -> QueryBuilder:
         """Filtra por departamento de residencia del estudiante."""
         return self._add_filter(
             "estudiante",
@@ -264,7 +264,7 @@ class QueryBuilder:
             dashboard_filter_key="departamento",
         )
 
-    def filtrar_por_municipio(self, municipio: Any) -> "QueryBuilder":
+    def filtrar_por_municipio(self, municipio: Any) -> QueryBuilder:
         """Filtra por municipio de residencia del estudiante."""
         return self._add_filter(
             "estudiante",
@@ -273,7 +273,7 @@ class QueryBuilder:
             dashboard_filter_key="municipio",
         )
 
-    def filtrar_por_institucion(self, nombre: Any) -> "QueryBuilder":
+    def filtrar_por_institucion(self, nombre: Any) -> QueryBuilder:
         """Filtra por nombre de la institución de educación superior."""
         return self._add_filter(
             "institucion",
@@ -282,7 +282,7 @@ class QueryBuilder:
             dashboard_filter_key="institucion",
         )
 
-    def filtrar_por_caracter_institucion(self, caracter: Any) -> "QueryBuilder":
+    def filtrar_por_caracter_institucion(self, caracter: Any) -> QueryBuilder:
         """Filtra por carácter académico de la institución."""
         return self._add_filter(
             "institucion",
@@ -291,7 +291,7 @@ class QueryBuilder:
             dashboard_filter_key="caracter_institucion",
         )
 
-    def filtrar_por_tipo_institucion(self, tipo: str) -> "QueryBuilder":
+    def filtrar_por_tipo_institucion(self, tipo: str) -> QueryBuilder:
         """Filtra IES oficiales o no oficiales según el prefijo de ``origen``."""
         normalized = tipo.strip().upper()
         prefixes = {"OFICIAL": "^OFICIAL", "NO OFICIAL": "^NO\\s+OFICIAL"}
@@ -310,7 +310,7 @@ class QueryBuilder:
         )
         return self
 
-    def filtrar_por_programa(self, programa: Any) -> "QueryBuilder":
+    def filtrar_por_programa(self, programa: Any) -> QueryBuilder:
         """Filtra por nombre del programa académico."""
         return self._add_filter(
             "programa",
@@ -319,7 +319,7 @@ class QueryBuilder:
             dashboard_filter_key="programa",
         )
 
-    def filtrar_por_metodo_programa(self, metodo: Any) -> "QueryBuilder":
+    def filtrar_por_metodo_programa(self, metodo: Any) -> QueryBuilder:
         """Filtra por metodología del programa (presencial, virtual, etc.)."""
         return self._add_filter(
             "programa",
@@ -328,7 +328,7 @@ class QueryBuilder:
             dashboard_filter_key="metodo_programa",
         )
 
-    def filtrar_por_genero(self, genero: Any) -> "QueryBuilder":
+    def filtrar_por_genero(self, genero: Any) -> QueryBuilder:
         """Filtra por género del estudiante (``F``/``M``)."""
         return self._add_filter(
             "estudiante",
@@ -337,7 +337,7 @@ class QueryBuilder:
             dashboard_filter_key="genero",
         )
 
-    def filtrar_por_estrato(self, estrato: Any) -> "QueryBuilder":
+    def filtrar_por_estrato(self, estrato: Any) -> QueryBuilder:
         """Filtra por estrato socioeconómico.
 
         Acepta ``2`` o ``"Estrato 2"``; ambos se normalizan al valor guardado.
@@ -350,7 +350,7 @@ class QueryBuilder:
             dashboard_filter_key="estrato",
         )
 
-    def filtrar_por_grupo_referencia(self, nucleo: Any) -> "QueryBuilder":
+    def filtrar_por_grupo_referencia(self, nucleo: Any) -> QueryBuilder:
         """Filtra por núcleo de conocimiento/grupo de referencia."""
         return self._add_filter(
             "programa",
@@ -359,23 +359,23 @@ class QueryBuilder:
             dashboard_filter_key="grupo_referencia",
         )
 
-    def filtrar_por_internet(self, tiene: Any) -> "QueryBuilder":
+    def filtrar_por_internet(self, tiene: Any) -> QueryBuilder:
         """Filtra por tenencia de internet (``True``/``False`` o ``Si``/``No``)."""
         return self._add_filter(
             "estudiante", "tiene_internet", tiene, self._normalize_yes_no
         )
 
-    def filtrar_por_computador(self, tiene: Any) -> "QueryBuilder":
+    def filtrar_por_computador(self, tiene: Any) -> QueryBuilder:
         """Filtra por tenencia de computador (``True``/``False`` o ``Si``/``No``)."""
         return self._add_filter(
             "estudiante", "tiene_computador", tiene, self._normalize_yes_no
         )
 
-    def filtrar_por_departamento_examen(self, depto: Any) -> "QueryBuilder":
+    def filtrar_por_departamento_examen(self, depto: Any) -> QueryBuilder:
         """Filtra por departamento donde se presentó el examen."""
         return self._add_filter("ubicacion", "depto_presentacion", depto)
 
-    def filtrar_por_municipio_examen(self, municipio: Any) -> "QueryBuilder":
+    def filtrar_por_municipio_examen(self, municipio: Any) -> QueryBuilder:
         """Filtra por municipio donde se presentó el examen."""
         return self._add_filter("ubicacion", "mcpio_presentacion", municipio)
 
@@ -383,7 +383,7 @@ class QueryBuilder:
     # Construcción del pipeline
     # ------------------------------------------------------------------
 
-    def reset(self) -> "QueryBuilder":
+    def reset(self) -> QueryBuilder:
         """Limpia filtros y dimensiones acumuladas."""
         self._conditions.clear()
         self._fact_conditions.clear()

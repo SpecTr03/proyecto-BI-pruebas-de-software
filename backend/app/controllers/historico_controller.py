@@ -1,6 +1,7 @@
 """Cálculo de la serie histórica del puntaje global."""
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from ..builders.query_builder import QueryBuilder
 from ..models.grafica import HistoricoResponse, PuntoHistorico
@@ -8,8 +9,8 @@ from ..services.dashboard_summaries import get_dashboard_summary
 from .kpi_controller import (
     FACT_COLLECTION,
     METRICAS_COMPETENCIAS,
-    _obtener_database,
     _ejecutar_agregacion,
+    _obtener_database,
     _redondear,
 )
 

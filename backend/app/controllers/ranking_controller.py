@@ -5,7 +5,7 @@ from typing import Literal
 from fastapi import HTTPException, status
 
 from ..builders.query_builder import QueryBuilder
-from ..models.grafica import RankingInstitucionesResponse, InstitucionRanking
+from ..models.grafica import InstitucionRanking, RankingInstitucionesResponse
 from ..services.dashboard_summaries import get_dashboard_summary
 from .kpi_controller import (
     FACT_COLLECTION,
@@ -14,7 +14,6 @@ from .kpi_controller import (
     _obtener_database,
     _redondear,
 )
-
 
 TipoInstitucion = Literal["OFICIAL", "NO OFICIAL"]
 

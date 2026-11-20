@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
-from typing import Optional
+from typing import Self
 
 from pymongo import MongoClient
 from pymongo.database import Database
@@ -33,10 +33,10 @@ class MongoConnection:
     puedan crear dos clientes distintos al mismo tiempo.
     """
 
-    _instance: Optional["MongoConnection"] = None
+    _instance: MongoConnection | None = None
     _lock = threading.RLock()
 
-    def __new__(cls, *args, **kwargs) -> "MongoConnection":
+    def __new__(cls, *args, **kwargs) -> Self:
         """Devuelve siempre la misma instancia de la clase."""
         with cls._lock:
             if cls._instance is None:

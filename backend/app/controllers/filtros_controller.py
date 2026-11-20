@@ -7,9 +7,9 @@ import logging
 from fastapi import HTTPException, status
 from pymongo.errors import PyMongoError
 
+from ..constants import normalize_catalog_value
 from ..database import mongo_connection
 from ..models.filtro import FiltroResponse
-from ..constants import normalize_catalog_value
 
 logger = logging.getLogger(__name__)
 

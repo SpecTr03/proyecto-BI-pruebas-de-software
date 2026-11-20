@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import bisect
 import logging
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from fastapi import HTTPException, status
 from pymongo.database import Database
@@ -127,8 +128,7 @@ def _adaptar_condicion_dimension(
 
     adaptada: dict[str, Any] = {}
     for field, value in condition.items():
-        if field.startswith(prefix):
-            field = field[len(prefix) :]
+        field = field.removeprefix(prefix)
         adaptada[field] = value
     return adaptada
 

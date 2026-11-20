@@ -12,6 +12,7 @@ from typing import Any
 import joblib
 import numpy as np
 import pandas as pd
+from pymongo.errors import PyMongoError
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +162,7 @@ def _obtener_media_nacional(artifact: dict[str, Any]) -> float:
             media = float(result[0]["media"])
             if math.isfinite(media) and 0 <= media <= 300:
                 return media
-    except Exception as exc:
+    except (KeyError, TypeError, ValueError, PyMongoError) as exc:
         logger.warning("No fue posible calcular la media nacional: %s", exc)
 
     return DEFAULT_MEDIA_NACIONAL

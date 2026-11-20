@@ -1,7 +1,7 @@
 """Generación y lectura de agregados estáticos del dashboard."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pymongo.database import Database
@@ -43,7 +43,7 @@ def refresh_dashboard_summaries(
 ) -> dict[str, int]:
     """Recalcula y reemplaza los resúmenes luego de una carga de datos."""
     summaries = database[SUMMARY_COLLECTION]
-    generated_at = datetime.now(timezone.utc)
+    generated_at = datetime.now(UTC)
     source_count = database[fact_collection].estimated_document_count()
     result_counts: dict[str, int] = {}
 

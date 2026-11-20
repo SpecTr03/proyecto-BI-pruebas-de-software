@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from functools import lru_cache
-from typing import Annotated, Callable
+from typing import Annotated
 from urllib.parse import urlsplit
 
 import jwt
@@ -79,13 +80,13 @@ def verify_neon_token(token: str) -> dict[str, object]:
 
 
 def create_app_token(user: AuthenticatedUser) -> tuple[str, datetime]:
-    expires_at = datetime.now(timezone.utc) + TOKEN_TTL
+    expires_at = datetime.now(UTC) + TOKEN_TTL
     payload = {
         "sub": user.id,
         "email": user.email,
         "role": user.role,
         "permissions": sorted(user.permissions),
-        "iat": datetime.now(timezone.utc),
+        "iat": datetime.now(UTC),
         "exp": expires_at,
     }
     return jwt.encode(payload, _jwt_secret(), algorithm=ALGORITHM), expires_at

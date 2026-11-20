@@ -23,10 +23,10 @@ from .proyeccion import ProyeccionCrecimientoResponse
 from .salud import SaludBDResponse
 
 __all__ = [
-    "FiltroResponse",
     "ComparativoCompetenciasResponse",
     "DesempenoEstrato",
     "EstratosResponse",
+    "FiltroResponse",
     "HealthResponse",
     "HistoricoResponse",
     "ImportanciaVariable",

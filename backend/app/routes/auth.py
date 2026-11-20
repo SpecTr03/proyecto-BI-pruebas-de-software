@@ -9,8 +9,8 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import (
-    AuthenticatedUser,
     ROLE_PERMISSIONS,
+    AuthenticatedUser,
     create_app_token,
     get_current_user,
     verify_neon_token,
@@ -83,7 +83,6 @@ async def login(payload: LoginRequest) -> LoginResponse:
             detail="Neon Auth no devolvió un JWT verificable.",
         )
 
-    data = response.json()
     neon_token = token_response.json().get("token")
     if not isinstance(neon_token, str):
         raise HTTPException(

@@ -12,17 +12,17 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .database import mongo_connection
+from .routes.auth import router as auth_router
 from .routes.filtros import router as filtros_router
 from .routes.graficas import router as graficas_router
 from .routes.health import router as health_router
-from .routes.auth import router as auth_router
 from .routes.kpis import router as kpis_router
 from .routes.modelo import router as modelo_router
 from .routes.neon import router as neon_router

@@ -2,11 +2,13 @@ from bson import ObjectId
 
 from backend.app.builders.query_builder import QueryBuilder
 from backend.app.constants import DASHBOARD_FILTER_FIELDS
-from backend.app.controllers import comparativo_controller
-from backend.app.controllers import distribucion_controller
-from backend.app.controllers import estrato_controller
-from backend.app.controllers import historico_controller
-from backend.app.controllers import ranking_controller
+from backend.app.controllers import (
+    comparativo_controller,
+    distribucion_controller,
+    estrato_controller,
+    historico_controller,
+    ranking_controller,
+)
 from backend.app.controllers.kpi_controller import METRICAS_COMPETENCIAS
 from scripts.populate_nosql import DocumentBuilder, create_dashboard_filter_indexes
 
