@@ -916,6 +916,11 @@ function DepartmentMap() {
   const minimum = values.length ? Math.min(...values) : 0
   const maximum = values.length ? Math.max(...values) : 300
   const range = maximum - minimum || 1
+  const thresholds = [
+    minimum + range * 0.25,
+    minimum + range * 0.5,
+    minimum + range * 0.75,
+  ]
   const scoreColor = (score: number) => {
     const ratio = Math.max(0, Math.min(1, (score - minimum) / range))
     if (ratio >= 0.75) return '#1f6a5a'
@@ -1048,10 +1053,14 @@ function DepartmentMap() {
               </>
             )}
             <div className="department-scale">
-              <span style={{ background: '#bd6652' }} /> Bajo
-              <span style={{ background: '#d2a95f' }} /> Medio
-              <span style={{ background: '#4d8b70' }} /> Alto
-              <span style={{ background: '#1f6a5a' }} /> Sobresaliente
+              <i style={{ background: '#bd6652' }} />
+              <span>Bajo <em>{minimum.toFixed(2)}–{thresholds[0].toFixed(2)}</em></span>
+              <i style={{ background: '#d2a95f' }} />
+              <span>Medio <em>{(thresholds[0] + 0.01).toFixed(2)}–{thresholds[1].toFixed(2)}</em></span>
+              <i style={{ background: '#4d8b70' }} />
+              <span>Alto <em>{(thresholds[1] + 0.01).toFixed(2)}–{thresholds[2].toFixed(2)}</em></span>
+              <i style={{ background: '#1f6a5a' }} />
+              <span>Sobresaliente <em>{(thresholds[2] + 0.01).toFixed(2)}–{maximum.toFixed(2)}</em></span>
             </div>
           </aside>
           </div>
@@ -1341,15 +1350,16 @@ function ProbabilityPrediction() {
     }
   }
 
-  const probability = result?.probabilidad_superar_media_nacional ?? 0
+  const mediaProbability = result?.probabilidad_superar_media_nacional ?? 0
+  const riskProbability = result?.probabilidad_riesgo_quintil_inferior ?? 0
 
   return (
     <section className="probability-workspace" aria-labelledby="probability-title">
       <div className="probability-heading">
         <div>
           <p className="eyebrow">Inferencia probabilística</p>
-          <h2 id="probability-title">Probabilidad de superar la media nacional</h2>
-          <p>Define el perfil de la cohorte para estimar su riesgo y oportunidad antes de la prueba.</p>
+          <h2 id="probability-title">Probabilidad y riesgo de desempeño</h2>
+          <p>Compara la probabilidad de superar la media con el riesgo de ubicarse en el quintil inferior.</p>
         </div>
       </div>
       <div className="probability-layout">
@@ -1365,7 +1375,7 @@ function ProbabilityPrediction() {
           <label>Departamento de residencia<select value={profile.depto_reside} onChange={(event) => updateField('depto_reside', event.target.value)} disabled={optionsLoading} required>{(options?.depto_reside ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <label>Departamento de la institución<select value={profile.depto_institucion} onChange={(event) => updateField('depto_institucion', event.target.value)} disabled={optionsLoading} required>{(options?.depto_institucion ?? []).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <button className="probability-submit" type="submit" disabled={loading || optionsLoading}>
-            {loading ? <><FiLoader className="export-spinner" /> Calculando...</> : <>Estimar probabilidad <FiArrowRight /></>}
+            {loading ? <><FiLoader className="export-spinner" /> Calculando...</> : <>Estimar probabilidades <FiArrowRight /></>}
           </button>
         </form>
         <aside className="probability-result" aria-live="polite">
@@ -1373,16 +1383,27 @@ function ProbabilityPrediction() {
             <p className="probability-error" role="alert"><FiAlertCircle />{error}</p>
           ) : result ? (
             <>
-              <p className="probability-label">Probabilidad estimada</p>
-              <strong className="probability-number">{probability.toFixed(1)}%</strong>
-              <div className="probability-track" aria-hidden="true"><span style={{ width: `${probability}%` }} /></div>
+              <div className="probability-metrics">
+                <div className="probability-metric">
+                  <p className="probability-label">Probabilidad de superar la media</p>
+                  <strong className="probability-number">{mediaProbability.toFixed(1)}%</strong>
+                  <div className="probability-track" aria-hidden="true"><span style={{ width: `${mediaProbability}%` }} /></div>
+                </div>
+                <div className="probability-metric">
+                  <p className="probability-label">Riesgo de quintil inferior</p>
+                  <strong className="probability-number probability-number--risk">{riskProbability.toFixed(1)}%</strong>
+                  <div className="probability-track probability-track--risk" aria-hidden="true"><span style={{ width: `${riskProbability}%` }} /></div>
+                </div>
+              </div>
               <dl>
                 <div><dt>Puntaje previsto</dt><dd>{result.puntaje_predicho.toFixed(1)}</dd></div>
                 <div><dt>Media nacional</dt><dd>{result.media_nacional.toFixed(1)}</dd></div>
                 <div><dt>Desempeño</dt><dd>{result.nivel_desempeno}</dd></div>
+                <div><dt>Nivel de riesgo</dt><dd>{result.nivel_riesgo}</dd></div>
+                <div><dt>Umbral quintil inferior</dt><dd>{result.umbral_quintil_inferior.toFixed(1)}</dd></div>
               </dl>
               <p className="probability-guidance">
-                {probability >= 60
+                {mediaProbability >= 60
                   ? 'Señal favorable. Mantén el seguimiento y refuerza las competencias con menor desempeño.'
                   : 'Señal preventiva. Prioriza refuerzo pedagógico y seguimiento cercano a esta cohorte.'}
               </p>
