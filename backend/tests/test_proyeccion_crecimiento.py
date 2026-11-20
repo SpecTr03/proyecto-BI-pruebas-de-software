@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
 from backend.app.controllers import proyeccion_controller
 from backend.app.routes import proyeccion as proyeccion_routes
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 PERIODOS = (
     "20183",

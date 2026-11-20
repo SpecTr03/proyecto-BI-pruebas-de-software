@@ -1,10 +1,9 @@
 """Pruebas del KPI de cobertura socioeconómica."""
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
 from backend.app.controllers import kpi_controller
 from backend.app.routes import kpis as kpis_routes
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
 def _mock_agregacion(

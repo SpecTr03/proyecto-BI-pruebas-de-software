@@ -1,7 +1,6 @@
 """Pruebas de la medición de rendimiento de MongoDB."""
 
 import pytest
-
 from backend.app.controllers import salud_bd_controller
 
 

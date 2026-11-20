@@ -1,5 +1,3 @@
-from bson import ObjectId
-
 from backend.app.builders.query_builder import QueryBuilder
 from backend.app.constants import DASHBOARD_FILTER_FIELDS
 from backend.app.controllers import (
@@ -10,6 +8,7 @@ from backend.app.controllers import (
     ranking_controller,
 )
 from backend.app.controllers.kpi_controller import METRICAS_COMPETENCIAS
+from bson import ObjectId
 from scripts.populate_nosql import DocumentBuilder, create_dashboard_filter_indexes
 
 

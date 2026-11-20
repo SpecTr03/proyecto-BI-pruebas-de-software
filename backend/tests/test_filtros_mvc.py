@@ -1,7 +1,6 @@
 """Pruebas MVC para los endpoints de filtros."""
 
 import pytest
-
 from backend.app.constants import normalize_catalog_value
 from backend.app.models.filtro import FiltroResponse
 from backend.app.routes import filtros

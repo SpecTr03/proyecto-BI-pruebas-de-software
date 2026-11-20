@@ -4,12 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
-
 from backend.app.auth import AuthenticatedUser, get_current_user
 from backend.app.controllers import modelo_controller
 from backend.app.routes import modelo as modelo_routes
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
 
 class _ModeloFake:
