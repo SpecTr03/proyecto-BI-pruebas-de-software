@@ -698,7 +698,8 @@ def calcular_kpi_ingles(
         nivel: round((total / total_registros) * 100, 2)
         for nivel, total in distribucion.items()
     }
-    total_b1_b2 = distribucion.get("B1", 0) + distribucion.get("B2", 0)
+    #total_b1_b2 = distribucion.get("B1", 0) + distribucion.get("B2", 0)
+    total_b1_b2 = distribucion.get("B1", 0)  # DEF-02: bug intencional, se omite B2
     porcentaje_b1_bplus = round(
         (total_b1_b2 / total_registros) * 100,
         2,
