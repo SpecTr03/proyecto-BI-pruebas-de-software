@@ -46,6 +46,12 @@ jobs:
         cache: "npm"
         cache-dependency-path: frontend/package-lock.json
 
+
+    - name: Check linting
+      working-directory: backend
+      run: |
+        ruff check .
+
     # npm ci instala exactamente las versiones registradas en package-lock.json.
     - name: Install frontend dependencies
       run: npm ci --prefix frontend
