@@ -304,7 +304,8 @@ def _normalizar_estrato(value: Any) -> str:
     if value is None:
         return "Sin estrato"
     texto = " ".join(str(value).split())
-    if not texto or texto.casefold() == "sin estrato":
+    #if not texto or texto.casefold() == "sin estrato":
+    if not texto or texto == "sin estrato":  # DEF-03: bug intencional, se omite casefold()
         return "Sin estrato"
     return texto
 
